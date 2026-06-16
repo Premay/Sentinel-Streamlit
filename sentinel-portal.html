@@ -1,0 +1,2608 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>SENTINEL — Threat Feed Intelligence Portal</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Space+Grotesk:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/tabler-icons.min.css">
+<style>
+:root{
+  --bg-base:#060a0f;--bg-surface:#0d1520;--bg-card:#111d2b;--bg-elevated:#16263a;
+  --accent-cyan:#00e5ff;--accent-red:#ff3b3b;--accent-amber:#ffb300;--accent-green:#00e676;--accent-purple:#b388ff;
+  --text-primary:#e8f0fe;--text-secondary:#8da3b8;--text-muted:#4a6278;
+  --border:rgba(0,229,255,0.1);--border-bright:rgba(0,229,255,0.3);
+  --font-mono:'JetBrains Mono',monospace;--font-ui:'Space Grotesk',sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-primary)}
+/* SCANLINE */
+body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,0.008) 2px,rgba(0,229,255,0.008) 4px)}
+
+/* ── LOGIN ── */
+#login-screen{position:fixed;inset:0;background:var(--bg-base);display:flex;align-items:center;justify-content:center;z-index:100;transition:opacity .5s}
+.login-box{width:420px;background:var(--bg-surface);border:1px solid var(--border-bright);border-radius:14px;padding:48px 40px;box-shadow:0 0 60px rgba(0,229,255,0.06)}
+.login-logo{text-align:center;margin-bottom:36px}
+.logo-mark{font-family:var(--font-mono);font-size:30px;font-weight:600;color:var(--accent-cyan);letter-spacing:6px;text-shadow:0 0 30px rgba(0,229,255,0.5)}
+.logo-sub{font-size:11px;color:var(--text-muted);letter-spacing:3px;text-transform:uppercase;margin-top:6px}
+.login-box label{display:block;font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:6px;margin-top:18px}
+.login-box input[type=text],.login-box input[type=password]{width:100%;background:var(--bg-card);border:1px solid var(--border);border-radius:7px;color:var(--text-primary);padding:11px 14px;font-family:var(--font-mono);font-size:13px;outline:none;transition:border .2s}
+.login-box input:focus{border-color:var(--accent-cyan);box-shadow:0 0 0 3px rgba(0,229,255,0.08)}
+.role-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:8px}
+.role-btn{padding:10px 8px;background:var(--bg-card);border:1px solid var(--border);border-radius:7px;color:var(--text-secondary);font-size:11px;font-family:var(--font-ui);cursor:pointer;text-align:center;transition:all .2s;line-height:1.6}
+.role-btn:hover{border-color:rgba(0,229,255,0.3)}
+.role-btn.active{border-color:var(--accent-cyan);color:var(--accent-cyan);background:rgba(0,229,255,0.08)}
+.btn-login{width:100%;margin-top:28px;padding:13px;background:var(--accent-cyan);color:#000;border:none;border-radius:7px;font-family:var(--font-ui);font-weight:700;font-size:13px;letter-spacing:2px;cursor:pointer;transition:all .2s}
+.btn-login:hover{background:#33ecff;box-shadow:0 0 24px rgba(0,229,255,0.35)}
+.login-error{color:var(--accent-red);font-size:12px;margin-top:10px;text-align:center;min-height:16px}
+.login-hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px}
+
+/* ── LAYOUT ── */
+#app{display:none;height:100vh;flex-direction:column}
+.ticker-wrap{background:rgba(255,59,59,0.07);border-bottom:1px solid rgba(255,59,59,0.18);padding:5px 0;overflow:hidden;flex-shrink:0}
+.ticker-inner{display:flex;gap:60px;animation:ticker 50s linear infinite;white-space:nowrap;font-family:var(--font-mono);font-size:10px;color:#ff6b6b;letter-spacing:.5px;padding:0 24px}
+@keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
+.topbar{height:54px;background:var(--bg-surface);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:14px;flex-shrink:0}
+.topbar-logo{font-family:var(--font-mono);font-size:17px;font-weight:600;color:var(--accent-cyan);letter-spacing:4px;text-shadow:0 0 12px rgba(0,229,255,0.4)}
+.topbar-sep{width:1px;height:22px;background:var(--border)}
+.topbar-subtitle{font-size:12px;color:var(--text-muted);letter-spacing:1px}
+.topbar-right{margin-left:auto;display:flex;align-items:center;gap:10px}
+.threat-chip{display:flex;align-items:center;gap:6px;font-family:var(--font-mono);font-size:10px;padding:5px 10px;border-radius:5px;border:1px solid var(--accent-amber);color:var(--accent-amber);background:rgba(255,179,0,0.07)}
+.pulse-dot{width:6px;height:6px;border-radius:50%;background:currentColor;animation:pulse 2s infinite}
+@keyframes pulse{0%,100%{opacity:1}50%{opacity:.25}}
+.user-chip{display:flex;align-items:center;gap:8px;padding:6px 12px;background:var(--bg-card);border:1px solid var(--border);border-radius:7px;cursor:default}
+.user-avatar{width:26px;height:26px;border-radius:50%;background:rgba(0,229,255,0.18);display:flex;align-items:center;justify-content:center;font-size:10px;color:var(--accent-cyan);font-weight:700}
+.uname{font-size:12px;color:var(--text-secondary)}
+.urole{font-size:10px;color:var(--accent-cyan);font-family:var(--font-mono);letter-spacing:1px}
+.btn-icon{padding:7px 10px;background:var(--bg-card);border:1px solid var(--border);border-radius:6px;color:var(--text-muted);cursor:pointer;font-size:14px;transition:all .2s;display:flex;align-items:center}
+.btn-icon:hover{border-color:var(--accent-cyan);color:var(--accent-cyan)}
+.app-body{display:flex;flex:1;overflow:hidden}
+
+/* ── SIDEBAR ── */
+.sidebar{width:216px;background:var(--bg-surface);border-right:1px solid var(--border);display:flex;flex-direction:column;flex-shrink:0;overflow-y:auto}
+.nav-section{padding:14px 12px 3px;font-size:9px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);font-weight:600}
+.nav-item{display:flex;align-items:center;gap:9px;padding:9px 14px;cursor:pointer;border-radius:6px;margin:1px 8px;color:var(--text-secondary);font-size:13px;transition:all .15s;border-left:2px solid transparent}
+.nav-item:hover{background:rgba(0,229,255,0.05);color:var(--text-primary)}
+.nav-item.active{background:rgba(0,229,255,0.09);color:var(--accent-cyan);border-left-color:var(--accent-cyan);border-radius:0 6px 6px 0;margin-left:6px}
+.nav-item i{font-size:16px;width:18px;flex-shrink:0}
+.nav-badge{margin-left:auto;font-size:9px;font-family:var(--font-mono);padding:2px 6px;background:rgba(255,59,59,0.18);color:#ff6b6b;border-radius:10px;font-weight:700}
+.nav-badge.warn{background:rgba(255,179,0,0.18);color:var(--accent-amber)}
+.nav-badge.ok{background:rgba(0,230,118,0.18);color:var(--accent-green)}
+.sidebar-bottom{margin-top:auto;padding:12px 8px;border-top:1px solid var(--border)}
+
+/* ── MAIN ── */
+.main{flex:1;overflow-y:auto;padding:24px;background:var(--bg-base)}
+.page{display:none}
+.page.active{display:block}
+.page-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:22px;flex-wrap:wrap;gap:10px}
+.page-title{font-size:20px;font-weight:600}
+.page-sub{font-size:11px;color:var(--text-muted);margin-top:2px;font-family:var(--font-mono)}
+.btn-row{display:flex;gap:8px;flex-wrap:wrap}
+
+/* ── STAT CARDS ── */
+.stats-row{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:22px}
+.stat-card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:16px 18px}
+.stat-label{font-size:10px;letter-spacing:2px;text-transform:uppercase;color:var(--text-muted);margin-bottom:8px}
+.stat-value{font-size:26px;font-family:var(--font-mono);font-weight:600;line-height:1}
+.stat-delta{font-size:11px;margin-top:6px;display:flex;align-items:center;gap:4px}
+.delta-up{color:var(--accent-red)}.delta-down{color:var(--accent-green)}
+
+/* ── GRID ── */
+.grid-2{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.grid-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+
+/* ── CARDS ── */
+.card{background:var(--bg-card);border:1px solid var(--border);border-radius:10px;padding:20px}
+.card-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:15px;padding-bottom:12px;border-bottom:1px solid var(--border)}
+.card-title{font-size:11px;font-weight:600;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-secondary)}
+
+/* ── TABLE ── */
+.data-table{width:100%;border-collapse:collapse;font-size:12px}
+.data-table th{padding:8px 12px;text-align:left;color:var(--text-muted);font-weight:500;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;border-bottom:1px solid var(--border);white-space:nowrap}
+.data-table td{padding:10px 12px;border-bottom:1px solid rgba(255,255,255,0.03);color:var(--text-secondary);vertical-align:middle}
+.data-table tr:hover td{background:rgba(0,229,255,0.03);color:var(--text-primary)}
+
+/* ── BADGES ── */
+.badge{display:inline-flex;align-items:center;gap:4px;padding:3px 8px;border-radius:4px;font-size:10px;font-weight:600;letter-spacing:.4px;font-family:var(--font-mono);white-space:nowrap}
+.badge-red{background:rgba(255,59,59,0.14);color:#ff6b6b;border:1px solid rgba(255,59,59,0.2)}
+.badge-amber{background:rgba(255,179,0,0.14);color:#ffca28;border:1px solid rgba(255,179,0,0.2)}
+.badge-green{background:rgba(0,230,118,0.14);color:#69f0ae;border:1px solid rgba(0,230,118,0.2)}
+.badge-cyan{background:rgba(0,229,255,0.11);color:#4dd0e1;border:1px solid rgba(0,229,255,0.2)}
+.badge-purple{background:rgba(179,136,255,0.14);color:#ce93d8;border:1px solid rgba(179,136,255,0.2)}
+.badge-gray{background:rgba(255,255,255,0.05);color:var(--text-secondary);border:1px solid var(--border)}
+
+/* ── FEED ITEMS ── */
+.feed-item{padding:13px 16px;border-bottom:1px solid var(--border);cursor:pointer;transition:background .15s;position:relative;padding-left:19px}
+.feed-item:hover{background:rgba(0,229,255,0.04)}
+.feed-item::before{content:'';position:absolute;left:0;top:0;bottom:0;width:3px;border-radius:2px}
+.feed-item.critical::before{background:var(--accent-red)}
+.feed-item.high::before{background:var(--accent-amber)}
+.feed-item.medium::before{background:var(--accent-cyan)}
+.feed-item.low::before{background:var(--text-muted)}
+.feed-title{font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:5px;line-height:1.4}
+.feed-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+.feed-time{font-size:10px;color:var(--text-muted);font-family:var(--font-mono)}
+
+/* ── AI PANEL ── */
+.ai-panel{background:rgba(179,136,255,0.04);border:1px solid rgba(179,136,255,0.18);border-radius:10px;padding:18px}
+.ai-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.ai-badge{font-size:9px;letter-spacing:2px;font-family:var(--font-mono);padding:3px 9px;background:rgba(179,136,255,0.18);color:var(--accent-purple);border-radius:4px;text-transform:uppercase}
+.ai-output{font-size:13px;color:var(--text-secondary);line-height:1.75;min-height:70px;white-space:pre-wrap}
+.ai-output.loading{color:var(--accent-purple)}
+.ai-output.loading::after{content:'▋';animation:blink .7s infinite}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0}}
+
+/* ── BUTTONS ── */
+.btn{padding:8px 15px;border-radius:6px;font-size:12px;font-family:var(--font-ui);font-weight:500;cursor:pointer;transition:all .18s;border:1px solid var(--border);background:var(--bg-elevated);color:var(--text-secondary);display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--accent-cyan);color:var(--accent-cyan)}
+.btn-sm{padding:5px 10px;font-size:11px}
+.btn-ai{background:rgba(179,136,255,0.09);border-color:rgba(179,136,255,0.28);color:var(--accent-purple)}
+.btn-ai:hover{background:rgba(179,136,255,0.18);border-color:var(--accent-purple)}
+.btn-danger{background:rgba(255,59,59,0.09);border-color:rgba(255,59,59,0.28);color:var(--accent-red)}
+.btn-success{background:rgba(0,230,118,0.09);border-color:rgba(0,230,118,0.28);color:var(--accent-green)}
+.btn-primary-full{width:100%;margin-top:10px;padding:11px;background:var(--accent-cyan);color:#000;border:none;border-radius:6px;font-family:var(--font-ui);font-weight:700;font-size:12px;letter-spacing:1px;cursor:pointer;transition:all .2s}
+.btn-primary-full:hover{background:#33ecff}
+
+/* ── INPUTS ── */
+.input-group{margin-bottom:13px}
+.input-group label{display:block;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:5px}
+.input-group input,.input-group select,.input-group textarea{width:100%;background:var(--bg-elevated);border:1px solid var(--border);border-radius:6px;color:var(--text-primary);padding:9px 12px;font-size:13px;font-family:var(--font-ui);outline:none;transition:border .2s}
+.input-group input:focus,.input-group select:focus,.input-group textarea:focus{border-color:var(--accent-cyan)}
+.input-group select option{background:var(--bg-card)}
+.input-group textarea{resize:vertical;min-height:80px;font-family:var(--font-mono);font-size:12px}
+
+/* ── TABS ── */
+.tab-bar{display:flex;gap:2px;margin-bottom:18px;border-bottom:1px solid var(--border);padding-bottom:0;overflow-x:auto}
+.tab{padding:8px 16px;font-size:12px;font-weight:500;cursor:pointer;color:var(--text-muted);border-bottom:2px solid transparent;margin-bottom:-1px;transition:all .18s;letter-spacing:.4px;white-space:nowrap;flex-shrink:0}
+.tab.active{color:var(--accent-cyan);border-bottom-color:var(--accent-cyan)}
+.tab:hover:not(.active){color:var(--text-secondary)}
+
+/* ── MITRE ── */
+.mitre-grid{display:flex;flex-wrap:wrap;gap:5px}
+.mitre-tag{background:rgba(0,229,255,0.06);border:1px solid rgba(0,229,255,0.15);border-radius:4px;padding:4px 8px;font-size:10px;font-family:var(--font-mono);color:var(--accent-cyan)}
+
+/* ── DARK WEB ── */
+.dw-item{padding:15px;background:var(--bg-elevated);border-radius:8px;border:1px solid var(--border);margin-bottom:8px;border-top:2px solid rgba(255,59,59,0.35)}
+
+/* ── STATUS DOTS ── */
+.status-dot{width:7px;height:7px;border-radius:50%;flex-shrink:0}
+.status-dot.live{background:var(--accent-green);box-shadow:0 0 6px var(--accent-green);animation:pulse 2s infinite}
+.status-dot.error{background:var(--accent-red)}
+.status-dot.paused{background:var(--text-muted)}
+
+/* ── PROGRESS ── */
+.progress-bar{height:4px;background:var(--bg-elevated);border-radius:2px;overflow:hidden;display:inline-block;vertical-align:middle}
+.progress-fill{height:100%;border-radius:2px;transition:width .4s}
+
+/* ── BAR CHART ── */
+.bar-chart{display:flex;align-items:flex-end;gap:5px;height:90px;padding:4px 0 22px}
+.bar{flex:1;border-radius:3px 3px 0 0;min-width:10px;position:relative;cursor:pointer;transition:opacity .2s}
+.bar:hover{opacity:.75}
+.bar-label{position:absolute;bottom:-18px;left:50%;transform:translateX(-50%);font-size:9px;color:var(--text-muted);white-space:nowrap;font-family:var(--font-mono)}
+
+/* ── MODAL ── */
+.modal-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:200;display:flex;align-items:center;justify-content:center;backdrop-filter:blur(3px)}
+.modal{background:var(--bg-surface);border:1px solid var(--border-bright);border-radius:12px;width:560px;max-width:92vw;max-height:82vh;overflow-y:auto;padding:28px;box-shadow:0 0 50px rgba(0,0,0,0.5)}
+.modal-title{font-size:16px;font-weight:600;margin-bottom:20px;color:var(--text-primary);display:flex;align-items:center;justify-content:space-between}
+.modal-close{background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:22px;line-height:1;padding:0}
+.modal-close:hover{color:var(--text-primary)}
+
+/* ── NOTIFICATION ── */
+#notif{position:fixed;bottom:24px;right:24px;background:var(--bg-elevated);border:1px solid var(--border-bright);border-radius:8px;padding:12px 20px;font-size:13px;color:var(--text-primary);z-index:500;max-width:360px;line-height:1.5;transition:opacity .4s;opacity:0;pointer-events:none;box-shadow:0 4px 24px rgba(0,0,0,0.4)}
+
+/* ── IOC VALUE ── */
+.ioc-val{font-family:var(--font-mono);font-size:11px;color:var(--accent-cyan);word-break:break-all}
+
+/* ── SCROLL ── */
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:transparent}
+::-webkit-scrollbar-thumb{background:rgba(0,229,255,0.2);border-radius:2px}
+
+/* ── RESPONSIVE ── */
+@media(max-width:900px){
+  .stats-row{grid-template-columns:1fr 1fr}
+  .grid-2,.grid-3{grid-template-columns:1fr}
+  .sidebar{width:52px}
+  .nav-item span:not(.nav-badge),.nav-section,.sidebar-bottom .btn{display:none}
+  .nav-item{justify-content:center;padding:10px}
+  .nav-badge{position:absolute;top:4px;right:4px;font-size:8px;padding:1px 4px}
+}
+
+/* ── SETTINGS KEY REVEAL ── */
+.key-wrap{position:relative}
+.key-wrap input{padding-right:40px}
+.key-reveal{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px}
+</style>
+</head>
+<body>
+
+<!-- ████ LOGIN ████ -->
+<div id="login-screen">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-mark">SENTINEL</div>
+      <div class="logo-sub">Threat Intelligence Platform v2.1</div>
+    </div>
+    <label>Username / Email</label>
+    <input type="text" id="login-user" placeholder="analyst@org.io" value="admin@sentinel.io" autocomplete="username">
+    <label>Password</label>
+    <input type="password" id="login-pass" placeholder="••••••••" value="sentinel2025" autocomplete="current-password">
+    <label>Access Role</label>
+    <div class="role-grid">
+      <div class="role-btn active" data-role="admin" onclick="selectRole(this)"><i class="ti ti-shield-lock"></i><br>Admin</div>
+      <div class="role-btn" data-role="analyst" onclick="selectRole(this)"><i class="ti ti-user-search"></i><br>Analyst</div>
+      <div class="role-btn" data-role="viewer" onclick="selectRole(this)"><i class="ti ti-eye"></i><br>Viewer</div>
+    </div>
+    <p id="login-error" class="login-error"></p>
+    <button class="btn-login" onclick="doLogin()">AUTHENTICATE →</button>
+    <p class="login-hint">Demo credentials pre-filled · Any password ≥6 chars works</p>
+  </div>
+</div>
+
+<!-- ████ APP ████ -->
+<div id="app">
+  <!-- TICKER -->
+  <div class="ticker-wrap"><div class="ticker-inner" id="ticker-inner"></div></div>
+  <!-- TOPBAR -->
+  <div class="topbar">
+    <div class="topbar-logo">SENTINEL</div>
+    <div class="topbar-sep"></div>
+    <div class="topbar-subtitle">THREAT INTELLIGENCE PORTAL</div>
+    <div class="topbar-right">
+      <div class="threat-chip"><div class="pulse-dot"></div>THREAT LEVEL: HIGH</div>
+      <div class="user-chip">
+        <div class="user-avatar" id="user-avatar">AD</div>
+        <div>
+          <div class="uname" id="user-name">admin@sentinel.io</div>
+          <div class="urole" id="user-role">ADMIN</div>
+        </div>
+      </div>
+      <button class="btn-icon" title="Logout" onclick="doLogout()"><i class="ti ti-logout"></i></button>
+    </div>
+  </div>
+  <!-- BODY -->
+  <div class="app-body">
+    <!-- SIDEBAR -->
+    <nav class="sidebar" id="sidebar">
+      <div class="nav-section">Intelligence</div>
+      <div class="nav-item active" onclick="showPage('dashboard',this)"><i class="ti ti-dashboard"></i><span>Dashboard</span></div>
+      <div class="nav-item" onclick="showPage('feeds',this)"><i class="ti ti-rss"></i><span>Feed Collector</span><span class="nav-badge">247</span></div>
+      <div class="nav-item" onclick="showPage('ai-hub',this)"><i class="ti ti-brain"></i><span>AI Hub</span></div>
+      <div class="nav-section">Threats</div>
+      <div class="nav-item" onclick="showPage('actors',this)"><i class="ti ti-users"></i><span>Threat Actors</span><span class="nav-badge warn">12</span></div>
+      <div class="nav-item" onclick="showPage('ioc',this)"><i class="ti ti-database"></i><span>IOC Repository</span></div>
+      <div class="nav-item" onclick="showPage('cve',this)"><i class="ti ti-bug"></i><span>CVE / NVD</span></div>
+      <div class="nav-section">Monitoring</div>
+      <div class="nav-item" onclick="showPage('darkweb',this)"><i class="ti ti-spider"></i><span>Dark Web</span><span class="nav-badge">8</span></div>
+      <div class="nav-item" onclick="showPage('fintech',this)"><i class="ti ti-building-bank"></i><span>Fintech Intel</span></div>
+      <div class="nav-section">Outputs</div>
+      <div class="nav-item" onclick="showPage('newsletter',this)"><i class="ti ti-mail"></i><span>Newsletter</span></div>
+      <div class="nav-item" onclick="showPage('reports',this)"><i class="ti ti-file-text"></i><span>Export Reports</span></div>
+      <div class="nav-section" id="admin-section">Admin</div>
+      <div class="nav-item" id="nav-users" onclick="showPage('users',this)"><i class="ti ti-users-group"></i><span>Users</span></div>
+      <div class="nav-item" id="nav-settings" onclick="showPage('settings',this)"><i class="ti ti-settings"></i><span>Settings</span></div>
+    </nav>
+    <!-- PAGES -->
+    <div class="main" id="main-area">
+
+      <!-- ▸ DASHBOARD -->
+      <div class="page active" id="page-dashboard">
+        <div class="page-header">
+          <div><div class="page-title">Intelligence Overview</div><div class="page-sub">Last updated: <span id="dash-time">—</span></div></div>
+          <div class="btn-row">
+            <button class="btn" onclick="refreshDash()"><i class="ti ti-refresh"></i> Refresh</button>
+            <button class="btn btn-ai" onclick="generateDashBriefing()"><i class="ti ti-brain"></i> AI Briefing</button>
+          </div>
+        </div>
+        <div class="stats-row">
+          <div class="stat-card"><div class="stat-label">Active Threats</div><div class="stat-value" style="color:var(--accent-red)">47</div><div class="stat-delta delta-up"><i class="ti ti-trending-up"></i>+12 this week</div></div>
+          <div class="stat-card"><div class="stat-label">IOCs Tracked</div><div class="stat-value" style="color:var(--accent-cyan)">18,492</div><div class="stat-delta delta-up"><i class="ti ti-trending-up"></i>+341 today</div></div>
+          <div class="stat-card"><div class="stat-label">Dark Web Hits</div><div class="stat-value" style="color:var(--accent-amber)">23</div><div class="stat-delta delta-up"><i class="ti ti-trending-up"></i>+3 new</div></div>
+          <div class="stat-card"><div class="stat-label">Critical CVEs</div><div class="stat-value" style="color:var(--accent-red)">8</div><div class="stat-delta delta-down"><i class="ti ti-trending-down"></i>-2 patched</div></div>
+        </div>
+        <div class="ai-panel" id="dash-ai-panel" style="margin-bottom:18px">
+          <div class="ai-header"><span class="ai-badge">AI EXECUTIVE BRIEFING</span><span style="font-size:11px;color:var(--text-muted)">Powered by Claude</span></div>
+          <div class="ai-output" id="dash-ai-out">Click "AI Briefing" to generate a real-time executive threat summary. Requires Claude API key in Settings.</div>
+        </div>
+        <div class="grid-2" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Live Intelligence Feed</span><span class="badge badge-green"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span></div>
+            <div id="dash-feed-list"></div>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Threat Activity — 7 Days</span></div>
+            <div class="bar-chart" id="activity-chart"></div>
+            <div style="margin-top:8px">
+              <div style="font-size:10px;color:var(--text-muted);letter-spacing:1px;text-transform:uppercase;margin-bottom:8px">Top Sectors Targeted</div>
+              <div id="sector-bars"></div>
+            </div>
+          </div>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Active Threat Actors</span></div>
+            <table class="data-table"><thead><tr><th>Actor</th><th>Origin</th><th>Last Seen</th><th>Level</th></tr></thead><tbody id="dash-actors"></tbody></table>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Feed Source Health</span></div>
+            <div id="feed-health"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ▸ FEEDS -->
+      <div class="page" id="page-feeds">
+        <div class="page-header">
+          <div><div class="page-title">Automated Feed Collector</div><div class="page-sub">RSS · Vendor Blogs · CVE/NVD · Dark Web Integrations</div></div>
+          <div class="btn-row">
+            <button class="btn" id="btn-add-feed" onclick="openAddFeed()"><i class="ti ti-plus"></i> Add Feed</button>
+            <button class="btn btn-ai" onclick="aiSummarizeFeeds()"><i class="ti ti-brain"></i> AI Digest All</button>
+          </div>
+        </div>
+        <div class="tab-bar" id="feed-tabs">
+          <div class="tab active" onclick="switchTab('feed','all',this)">All Sources</div>
+          <div class="tab" onclick="switchTab('feed','RSS',this)">RSS</div>
+          <div class="tab" onclick="switchTab('feed','vendor',this)">Vendor Blogs</div>
+          <div class="tab" onclick="switchTab('feed','darkweb',this)">Dark Web</div>
+          <div class="tab" onclick="switchTab('feed','cve',this)">CVE/NVD</div>
+        </div>
+        <div class="card" style="margin-bottom:16px;overflow-x:auto">
+          <table class="data-table" id="feeds-table-el" style="min-width:600px">
+            <thead><tr><th>Source Name</th><th>Type</th><th>Status</th><th>Last Fetch</th><th>Items</th><th>Actions</th></tr></thead>
+            <tbody id="feeds-tbody"></tbody>
+          </table>
+        </div>
+        <div class="ai-panel">
+          <div class="ai-header"><span class="ai-badge">AI FEED DIGEST</span></div>
+          <div class="ai-output" id="feed-ai-out">Click "AI Digest All" to get a Claude-powered summary of all active intelligence feeds.</div>
+        </div>
+      </div>
+
+      <!-- ▸ AI HUB -->
+      <div class="page" id="page-ai-hub">
+        <div class="page-header">
+          <div><div class="page-title">AI Intelligence Hub</div><div class="page-sub">Powered by Claude · Summaries · Profiles · Advisories · Newsletters</div></div>
+        </div>
+        <div class="grid-2" style="margin-bottom:16px">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Generate Intelligence Content</span></div>
+            <div class="input-group"><label>Output Type</label>
+              <select id="ai-type">
+                <option value="exec">Executive Threat Summary</option>
+                <option value="newsletter">Newsletter Issue</option>
+                <option value="profile">Threat Actor Profile</option>
+                <option value="advisory">Security Advisory</option>
+                <option value="ioc-report">IOC Analysis Report</option>
+                <option value="fintech">Fintech Threat Briefing</option>
+                <option value="hunting">Threat Hunting Queries</option>
+              </select>
+            </div>
+            <div class="input-group"><label>Subject / Context</label>
+              <textarea id="ai-context">Lazarus Group recent banking sector campaigns targeting SWIFT infrastructure with new malware variants across West African financial institutions.</textarea>
+            </div>
+            <div class="input-group"><label>Target Audience</label>
+              <select id="ai-audience">
+                <option>C-Suite / Board</option>
+                <option>Security Operations Team</option>
+                <option>SOC Analysts (L2/L3)</option>
+                <option>IT Management</option>
+                <option>Risk &amp; Compliance</option>
+                <option>Threat Intelligence Team</option>
+              </select>
+            </div>
+            <button class="btn btn-ai" style="width:100%;justify-content:center;padding:11px" onclick="runAiHub()"><i class="ti ti-brain"></i> Generate with Claude AI</button>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column">
+            <div class="card-header">
+              <span class="card-title">AI Output</span>
+              <div style="display:flex;gap:6px">
+                <button class="btn btn-sm" id="ai-copy-btn" onclick="copyAiOut()" style="display:none"><i class="ti ti-copy"></i> Copy</button>
+                <button class="btn btn-sm" id="ai-queue-btn" onclick="queueAiOut()" style="display:none"><i class="ti ti-plus"></i> Queue</button>
+              </div>
+            </div>
+            <div class="ai-output" id="ai-hub-out" style="flex:1">Select a type and click Generate.</div>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Generation History</span><span class="badge badge-gray" id="ai-hist-count">0 items</span></div>
+          <div id="ai-hist-list"><div style="color:var(--text-muted);font-size:13px;padding:16px 0;text-align:center">No generations this session.</div></div>
+        </div>
+      </div>
+
+      <!-- ▸ THREAT ACTORS -->
+      <div class="page" id="page-actors">
+        <div class="page-header">
+          <div><div class="page-title">Threat Actor Repository</div><div class="page-sub">MITRE ATT&amp;CK Mapping · Malware Associations · Campaign Tracking</div></div>
+          <div class="btn-row">
+            <input id="actor-search" placeholder="Search actors, origin, malware…" oninput="renderActors()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;width:220px">
+            <button class="btn btn-ai" onclick="aiActorProfile()"><i class="ti ti-brain"></i> AI Profile</button>
+          </div>
+        </div>
+        <div id="actor-grid" style="display:grid;grid-template-columns:1fr 1fr;gap:14px"></div>
+      </div>
+
+      <!-- ▸ IOC -->
+      <div class="page" id="page-ioc">
+        <div class="page-header">
+          <div><div class="page-title">IOC Repository</div><div class="page-sub">Indicators of Compromise · Elasticsearch Indexed · 18,492 records</div></div>
+          <div class="btn-row">
+            <input id="ioc-search" placeholder="Search value, actor…" oninput="renderIOCs()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-primary);padding:8px 12px;border-radius:6px;font-size:12px;outline:none;width:200px">
+            <select id="ioc-type-f" onchange="renderIOCs()" style="background:var(--bg-card);border:1px solid var(--border);color:var(--text-secondary);padding:8px 10px;border-radius:6px;font-size:12px;outline:none">
+              <option value="">All Types</option><option>IP</option><option>Domain</option><option>SHA256</option><option>URL</option><option>Email</option><option>BTC Wallet</option>
+            </select>
+            <button class="btn" id="btn-add-ioc" onclick="openAddIOC()"><i class="ti ti-plus"></i> Add IOC</button>
+          </div>
+        </div>
+        <div class="stats-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:16px">
+          <div class="stat-card"><div class="stat-label">IPs</div><div class="stat-value" style="font-size:20px;color:var(--accent-red)">4,821</div></div>
+          <div class="stat-card"><div class="stat-label">Domains</div><div class="stat-value" style="font-size:20px;color:var(--accent-amber)">2,340</div></div>
+          <div class="stat-card"><div class="stat-label">Hashes</div><div class="stat-value" style="font-size:20px;color:var(--accent-cyan)">8,931</div></div>
+          <div class="stat-card"><div class="stat-label">URLs</div><div class="stat-value" style="font-size:20px;color:var(--accent-purple)">1,204</div></div>
+          <div class="stat-card"><div class="stat-label">Emails</div><div class="stat-value" style="font-size:20px;color:var(--accent-green)">891</div></div>
+          <div class="stat-card"><div class="stat-label">Crypto</div><div class="stat-value" style="font-size:20px;color:var(--accent-amber)">305</div></div>
+        </div>
+        <div class="card" style="overflow-x:auto">
+          <div class="card-header"><span class="card-title">IOC Database</span><span id="ioc-count" style="font-size:11px;color:var(--text-muted)"></span></div>
+          <table class="data-table" style="min-width:700px">
+            <thead><tr><th>Type</th><th>Value</th><th>Threat Actor</th><th>Confidence</th><th>Tags</th><th>First Seen</th><th></th></tr></thead>
+            <tbody id="ioc-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ▸ CVE -->
+      <div class="page" id="page-cve">
+        <div class="page-header">
+          <div><div class="page-title">CVE / NVD Intelligence</div><div class="page-sub">National Vulnerability Database · Auto-ingested · CVSS Scored</div></div>
+          <div class="btn-row">
+            <button class="btn" onclick="openAddCVE()"><i class="ti ti-plus"></i> Add CVE</button>
+            <button class="btn btn-ai" onclick="aiCVEAnalysis()"><i class="ti ti-brain"></i> AI Impact Analysis</button>
+          </div>
+        </div>
+        <div id="cve-list-el" style="margin-bottom:16px"></div>
+        <div class="ai-panel">
+          <div class="ai-header"><span class="ai-badge">AI CVE ANALYSIS</span></div>
+          <div class="ai-output" id="cve-ai-out">Click "AI Impact Analysis" for prioritized remediation guidance.</div>
+        </div>
+      </div>
+
+      <!-- ▸ DARK WEB -->
+      <div class="page" id="page-darkweb">
+        <div class="page-header">
+          <div><div class="page-title">Dark Web Intelligence</div><div class="page-sub">Ransomware Victims · Data Leaks · Initial Access Brokers</div></div>
+          <button class="btn btn-ai" onclick="aiDarkWeb()"><i class="ti ti-brain"></i> AI Analysis</button>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchDWTab('ransomware',this)">Ransomware Victims</div>
+          <div class="tab" onclick="switchDWTab('leaks',this)">Data Leaks</div>
+          <div class="tab" onclick="switchDWTab('iab',this)">Access Brokers</div>
+        </div>
+        <div id="dw-ransomware-tab"><div id="dw-ransom-list"></div></div>
+        <div id="dw-leaks-tab" style="display:none"><div id="dw-leaks-list"></div></div>
+        <div id="dw-iab-tab" style="display:none"><div id="dw-iab-list"></div></div>
+        <div class="ai-panel" style="margin-top:16px">
+          <div class="ai-header"><span class="ai-badge">AI DARK WEB ASSESSMENT</span></div>
+          <div class="ai-output" id="dw-ai-out">Click "AI Analysis" for an AI-generated dark web threat assessment.</div>
+        </div>
+      </div>
+
+      <!-- ▸ FINTECH -->
+      <div class="page" id="page-fintech">
+        <div class="page-header">
+          <div><div class="page-title">Fintech Intelligence Module</div><div class="page-sub">Banking Malware · Phishing Kits · Carding · SWIFT · Crypto Theft</div></div>
+          <button class="btn btn-ai" onclick="aiFintechBrief()"><i class="ti ti-brain"></i> AI Threat Brief</button>
+        </div>
+        <div class="tab-bar">
+          <div class="tab active" onclick="switchFintechTab('banking',this)">Banking Malware</div>
+          <div class="tab" onclick="switchFintechTab('phishing',this)">Phishing Kits</div>
+          <div class="tab" onclick="switchFintechTab('carding',this)">Carding Forums</div>
+          <div class="tab" onclick="switchFintechTab('swift',this)">SWIFT Threats</div>
+          <div class="tab" onclick="switchFintechTab('crypto',this)">Crypto Theft</div>
+        </div>
+        <div id="fintech-banking-tab"></div>
+        <div id="fintech-phishing-tab" style="display:none"></div>
+        <div id="fintech-carding-tab" style="display:none"></div>
+        <div id="fintech-swift-tab" style="display:none"></div>
+        <div id="fintech-crypto-tab" style="display:none"></div>
+        <div class="ai-panel" style="margin-top:16px">
+          <div class="ai-header"><span class="ai-badge">AI FINTECH BRIEF</span></div>
+          <div class="ai-output" id="fintech-ai-out">Click "AI Threat Brief" for a fintech-sector intelligence briefing.</div>
+        </div>
+      </div>
+
+      <!-- ▸ NEWSLETTER -->
+      <div class="page" id="page-newsletter">
+        <div class="page-header">
+          <div><div class="page-title">Newsletter Queue</div><div class="page-sub">Curate items from feed · AI-generate · Export</div></div>
+          <button class="btn btn-ai" onclick="aiNewsletter()"><i class="ti ti-brain"></i> AI Generate Newsletter</button>
+        </div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">Queued Items</span><span class="badge badge-cyan" id="nl-count">0 items</span></div>
+            <div id="nl-queue-list" style="min-height:80px;margin-bottom:14px">
+              <div style="color:var(--text-muted);font-size:13px;padding:16px 0;text-align:center">Click feed items on the Dashboard to queue them here.</div>
+            </div>
+            <div class="input-group"><label>Newsletter Title</label><input id="nl-title" value="Weekly Threat Intelligence Digest — June 2025"></div>
+            <div class="input-group"><label>Target Audience</label>
+              <select id="nl-audience"><option>C-Suite / Board</option><option>Security Team</option><option>All Staff</option></select>
+            </div>
+          </div>
+          <div class="card" style="display:flex;flex-direction:column">
+            <div class="card-header"><span class="card-title">Generated Newsletter</span>
+              <button class="btn btn-sm" onclick="copyEl('nl-out')"><i class="ti ti-copy"></i> Copy</button>
+            </div>
+            <div class="ai-output" id="nl-out" style="flex:1">Newsletter content appears here after generation.</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ▸ REPORTS -->
+      <div class="page" id="page-reports">
+        <div class="page-header">
+          <div><div class="page-title">Export Reports</div><div class="page-sub">AI-generated content · PDF · Word · PowerPoint</div></div>
+        </div>
+        <div class="grid-3" style="margin-bottom:20px">
+          <div class="card" style="text-align:center;padding:26px 20px">
+            <i class="ti ti-file-type-pdf" style="font-size:38px;color:var(--accent-red);display:block;margin-bottom:12px"></i>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">PDF Report</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Formatted report with charts, IOC tables, and threat profiles</div>
+            <button class="btn" style="width:100%;justify-content:center" onclick="exportReport('PDF')"><i class="ti ti-download"></i> Export PDF</button>
+          </div>
+          <div class="card" style="text-align:center;padding:26px 20px">
+            <i class="ti ti-file-type-doc" style="font-size:38px;color:var(--accent-cyan);display:block;margin-bottom:12px"></i>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">Word Document</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Editable .docx with exec summary, actor profiles, recommendations</div>
+            <button class="btn" style="width:100%;justify-content:center" onclick="exportReport('Word')"><i class="ti ti-download"></i> Export DOCX</button>
+          </div>
+          <div class="card" style="text-align:center;padding:26px 20px">
+            <i class="ti ti-presentation" style="font-size:38px;color:var(--accent-amber);display:block;margin-bottom:12px"></i>
+            <div style="font-size:14px;font-weight:600;margin-bottom:6px">PowerPoint Deck</div>
+            <div style="font-size:11px;color:var(--text-muted);margin-bottom:16px">Executive briefing slides with visualisations and key findings</div>
+            <button class="btn" style="width:100%;justify-content:center" onclick="exportReport('PowerPoint')"><i class="ti ti-download"></i> Export PPTX</button>
+          </div>
+        </div>
+        <div class="card">
+          <div class="card-header"><span class="card-title">Report Configuration</span></div>
+          <div class="grid-2">
+            <div>
+              <div class="input-group"><label>Report Title</label><input id="rpt-title" value="Threat Intelligence Report — June 2025"></div>
+              <div class="input-group"><label>TLP Classification</label>
+                <select id="rpt-tlp"><option>TLP:WHITE</option><option>TLP:GREEN</option><option>TLP:AMBER</option><option>TLP:RED</option></select>
+              </div>
+              <div class="input-group"><label>Time Period</label>
+                <select><option>Last 7 days</option><option>Last 30 days</option><option>Last Quarter</option></select>
+              </div>
+            </div>
+            <div>
+              <div style="font-size:10px;letter-spacing:1.5px;text-transform:uppercase;color:var(--text-muted);margin-bottom:10px">Include Sections</div>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" checked> Executive Summary (AI)</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" checked> Threat Actor Profiles</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" checked> IOC Tables</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" checked> CVE Analysis</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox" checked> Fintech Intel</label>
+              <label style="display:flex;align-items:center;gap:8px;margin-bottom:8px;font-size:13px;color:var(--text-secondary);cursor:pointer"><input type="checkbox"> Dark Web Summary</label>
+            </div>
+          </div>
+          <button class="btn btn-ai" style="margin-top:10px" onclick="aiGenerateReport()"><i class="ti ti-brain"></i> AI-Generate Report Content</button>
+          <div class="ai-output" id="rpt-ai-out" style="margin-top:16px">Report content will appear here.</div>
+        </div>
+      </div>
+
+      <!-- ▸ USERS -->
+      <div class="page" id="page-users">
+        <div class="page-header">
+          <div><div class="page-title">User Management</div><div class="page-sub">RBAC · Admin / Analyst / Viewer</div></div>
+          <button class="btn" onclick="openAddUser()"><i class="ti ti-plus"></i> Add User</button>
+        </div>
+        <div class="card" style="overflow-x:auto">
+          <table class="data-table" style="min-width:600px">
+            <thead><tr><th>Name</th><th>Email</th><th>Role</th><th>Status</th><th>Last Login</th><th>Actions</th></tr></thead>
+            <tbody id="users-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+
+      <!-- ▸ SETTINGS -->
+      <div class="page" id="page-settings">
+        <div class="page-header"><div class="page-title">Platform Settings</div></div>
+        <div class="grid-2">
+          <div class="card">
+            <div class="card-header"><span class="card-title">API Configuration</span></div>
+            <div class="input-group">
+              <label>Claude AI API Key <span style="color:var(--accent-purple)">(required for AI features)</span></label>
+              <div class="key-wrap">
+                <input type="password" id="api-key-input" placeholder="sk-ant-api03-...">
+                <button class="key-reveal" onclick="toggleKeyVis()" title="Show/hide"><i class="ti ti-eye" id="key-eye"></i></button>
+              </div>
+            </div>
+            <div class="input-group"><label>PostgreSQL Connection String</label><input type="password" value="postgresql://sentinel:****@db.sentinel.io:5432/intel" readonly></div>
+            <div class="input-group"><label>Elasticsearch Endpoint</label><input value="https://es.sentinel.io:9200" readonly></div>
+            <button class="btn btn-success" style="margin-top:6px" onclick="saveSettings()"><i class="ti ti-check"></i> Save Configuration</button>
+          </div>
+          <div class="card">
+            <div class="card-header"><span class="card-title">Collection Schedule</span></div>
+            <div class="input-group"><label>RSS Feed Interval</label>
+              <select><option>Every 15 minutes</option><option>Every 30 minutes</option><option>Every hour</option></select>
+            </div>
+            <div class="input-group"><label>CVE / NVD Sync</label>
+              <select><option>Every 6 hours</option><option>Daily</option></select>
+            </div>
+            <div class="input-group"><label>Dark Web Scan</label>
+              <select><option>Every 4 hours</option><option>Every 12 hours</option></select>
+            </div>
+            <div class="input-group"><label>AI Auto-Summarize</label>
+              <select><option>On new critical items</option><option>Every 6 hours</option><option>Daily digest</option></select>
+            </div>
+            <div class="input-group"><label>MITRE ATT&amp;CK Sync</label>
+              <select><option>Weekly</option><option>Monthly</option></select>
+            </div>
+          </div>
+        </div>
+        <div class="card" style="margin-top:16px">
+          <div class="card-header"><span class="card-title">About &amp; Sharing</span></div>
+          <p style="font-size:13px;color:var(--text-secondary);line-height:1.7;margin-bottom:12px">
+            This is a standalone HTML file — no server required. To share with your team:
+          </p>
+          <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px">
+            <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:6px"><i class="ti ti-file"></i> Email the file</div>
+              <div style="font-size:11px;color:var(--text-muted)">Send <code style="color:var(--accent-cyan)">sentinel-portal.html</code> directly to teammates. They open it in any browser.</div>
+            </div>
+            <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:6px"><i class="ti ti-brand-github"></i> GitHub Pages</div>
+              <div style="font-size:11px;color:var(--text-muted)">Commit the file to a private GitHub repo, enable Pages for a shareable URL.</div>
+            </div>
+            <div style="background:var(--bg-elevated);border:1px solid var(--border);border-radius:8px;padding:14px">
+              <div style="font-size:12px;font-weight:600;color:var(--text-primary);margin-bottom:6px"><i class="ti ti-server"></i> Internal Server</div>
+              <div style="font-size:11px;color:var(--text-muted)">Drop the file in any web server folder (Nginx, Apache, S3 static hosting).</div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /main -->
+  </div><!-- /app-body -->
+</div><!-- /app -->
+
+<!-- MODAL -->
+<div class="modal-overlay" id="modal-overlay" style="display:none" onclick="closeModalOnBg(event)">
+  <div class="modal" id="modal-inner"></div>
+</div>
+
+<!-- NOTIFICATION -->
+<div id="notif"></div>
+
+<script>
+// Helper for dynamic dates relative to current local time (June 10, 2026)
+function getRelativeDateStr(daysAgo) {
+  const d = new Date();
+  d.setDate(d.getDate() - daysAgo);
+  return d.toISOString().slice(0, 10);
+}
+
+function getRelativeTimeStr(minutesAgo) {
+  if (minutesAgo < 60) return `${minutesAgo} min ago`;
+  const hrs = Math.floor(minutesAgo / 60);
+  if (hrs < 24) return `${hrs} hr ago`;
+  const days = Math.floor(hrs / 24);
+  return `${days} days ago`;
+}
+
+// ══════════════════════════════════════════════════════════
+// DATA (Customized for African Fintech Hubs)
+// ══════════════════════════════════════════════════════════
+const FEEDS_DATA = [
+  {name:'FS-ISAC Advisories',type:'vendor',status:'live',last:getRelativeTimeStr(4),items:64,url:'fsisac.com'},
+  {name:'SWIFT Customer Security Intelligence',type:'vendor',status:'live',last:getRelativeTimeStr(9),items:21,url:'swift.com'},
+  {name:'PCI Security Standards Council Alerts',type:'vendor',status:'live',last:getRelativeTimeStr(18),items:14,url:'pcisecuritystandards.org'},
+  {name:'CISA KEV - Financial Exposure Watch',type:'cve',status:'live',last:getRelativeTimeStr(12),items:38,url:'cisa.gov/known-exploited-vulnerabilities-catalog'},
+  {name:'Abuse.ch ThreatFox - Banking IOCs',type:'RSS',status:'live',last:getRelativeTimeStr(6),items:126,url:'threatfox.abuse.ch'},
+  {name:'URLhaus - Payment Malware URLs',type:'RSS',status:'live',last:getRelativeTimeStr(7),items:91,url:'urlhaus.abuse.ch'},
+  {name:'AlienVault OTX - Finance Pulses',type:'RSS',status:'live',last:getRelativeTimeStr(3),items:118,url:'otx.alienvault.com'},
+  {name:'Ransomware.live - Financial Victims',type:'darkweb',status:'live',last:getRelativeTimeStr(15),items:33,url:'ransomware.live'},
+  {name:'CBN Cybersecurity Circulars',type:'vendor',status:'live',last:getRelativeTimeStr(25),items:9,url:'cbn.gov.ng'},
+  {name:'SABRIC Banking Alerts',type:'vendor',status:'live',last:getRelativeTimeStr(11),items:45,url:'sabric.co.za'},
+  {name:'NIBSS / Payments Fraud Signals',type:'vendor',status:'live',last:getRelativeTimeStr(30),items:17,url:'nibss-plc.com.ng'},
+  {name:'BleepingComputer - Finance & Ransomware',type:'RSS',status:'live',last:getRelativeTimeStr(22),items:24,url:'bleepingcomputer.com'},
+];
+
+const ACTORS_DATA = [
+  {name:'Lazarus Group',origin:'North Korea',aka:'APT38, Hidden Cobra',motivation:'Financial, Espionage',sectors:['Financial Services','Crypto','Government'],severity:'critical',mitre:['T1566','T1190','T1059','T1078','T1486','T1195'],malware:['AppleJeus','BLINDINGCAN','HOPLIGHT','Manuscrypt'],campaigns:['Operation AppleJeus','TraderTraitor','SWIFT Heists 2026'],lastSeen:getRelativeTimeStr(3 * 24 * 60),iocs:247},
+  {name:'FIN7',origin:'Russia',aka:'Carbanak, Navigator Group',motivation:'Financial',sectors:['Retail','Hospitality','Financial'],severity:'critical',mitre:['T1566.001','T1059.001','T1218','T1071','T1055'],malware:['Carbanak','BIRDWATCH','BOOSTWRITE','REvil'],campaigns:['POS Malware Campaign','Ransomware Pivot 2026','BEC CFO Targeting'],lastSeen:getRelativeTimeStr(1 * 24 * 60),iocs:182},
+  {name:'Scattered Spider',origin:'US / UK',aka:'0ktapus, Starfraud',motivation:'Financial, Data Theft',sectors:['Telecom','Financial','Tech'],severity:'high',mitre:['T1566','T1621','T1078','T1539','T1557'],malware:['STONESTOP','ViperSoftX','OKTAPUS'],campaigns:['MGM Ransomware','Caesars Attack','Crypto Exchange Raids'],lastSeen:getRelativeTimeStr(5 * 24 * 60),iocs:89},
+  {name:'Cl0p',origin:'Russia',aka:'TA505',motivation:'Ransomware-as-a-Service',sectors:['Healthcare','Manufacturing','Finance'],severity:'high',mitre:['T1190','T1486','T1567','T1041'],malware:['Cl0p Ransomware','SDBOT','FLAWEDGRACE'],campaigns:['MOVEit Exploitation','GoAnywhere Campaign'],lastSeen:getRelativeTimeStr(2 * 24 * 60),iocs:134},
+  {name:'APT29',origin:'Russia',aka:'Cozy Bear, Midnight Blizzard',motivation:'Espionage',sectors:['Government','Defense','Tech'],severity:'critical',mitre:['T1195','T1078','T1584','T1021','T1556'],malware:['SUNBURST','WellMess','BEATDROP','MagicWeb'],campaigns:['SolarWinds 2024 Follow-on','Microsoft Tenant Compromise'],lastSeen:getRelativeTimeStr(7 * 24 * 60),iocs:321},
+  {name:'Kimsuky',origin:'North Korea',aka:'Velvet Chollima, Black Banshee',motivation:'Espionage, Financial',sectors:['Think Tanks','Government','Finance'],severity:'high',mitre:['T1566','T1059','T1074','T1041','T1003'],malware:['BabyShark','AppleSeed','RandomQuery','PebbleDash'],campaigns:['South Korea Targeting','Crypto Theft Wave 2026'],lastSeen:getRelativeTimeStr(4 * 24 * 60),iocs:93},
+];
+
+const IOCS_DATA = [
+  {type:'IP',value:'185.220.101.47',actor:'Lazarus Group',conf:95,tags:['C2','DPRK'],date:getRelativeDateStr(9)},
+  {type:'SHA256',value:'a1b2c3d4e5f6789012345678901234567890abcdef12345678901234567890ab',actor:'FIN7',conf:98,tags:['Carbanak','POS'],date:getRelativeDateStr(11)},
+  {type:'Domain',value:'update-secure-portal.ru',actor:'APT29',conf:87,tags:['Phishing','C2'],date:getRelativeDateStr(13)},
+  {type:'BTC Wallet',value:'1A2B3C4D5E6F7G8H9I0J1K2L3M4N',actor:'Cl0p',conf:82,tags:['Ransom','BTC'],date:getRelativeDateStr(14)},
+  {type:'URL',value:'https://cdn.update-microsoft[.]com/patch.exe',actor:'Scattered Spider',conf:91,tags:['Dropper'],date:getRelativeDateStr(12)},
+  {type:'IP',value:'91.108.4.227',actor:'FIN7',conf:78,tags:['TOR Exit','Proxy'],date:getRelativeDateStr(10)},
+  {type:'Email',value:'hr-notify@m1crosoft-security.com',actor:'APT29',conf:94,tags:['Spearphish','BEC'],date:getRelativeDateStr(8)},
+  {type:'SHA256',value:'deadbeef1234567890abcdef1234567890abcdef1234567890abcdef12345678',actor:'Kimsuky',conf:88,tags:['BabyShark'],date:getRelativeDateStr(7)},
+  {type:'Domain',value:'swift-transfer-verify.cc',actor:'Lazarus Group',conf:97,tags:['SWIFT','FinTech'],date:getRelativeDateStr(6)},
+  {type:'BTC Wallet',value:'bc1qar0srrr7xfkvy5l643lydnw9re59gtzzwf5mdq',actor:'Cl0p',conf:85,tags:['Crypto','Ransom'],date:getRelativeDateStr(8)},
+  {type:'IP',value:'45.142.212.100',actor:'Kimsuky',conf:80,tags:['Proxy','NK'],date:getRelativeDateStr(9)},
+  {type:'Domain',value:'login-binance-secure[.]io',actor:'Lazarus Group',conf:93,tags:['Crypto','Phish'],date:getRelativeDateStr(7)},
+];
+
+const CVES_DATA = [
+  {id:'CVE-2026-30065',cvss:9.8,sev:'critical',product:'Apache Parquet',desc:'Remote code execution via crafted Parquet files allows unauthenticated attackers to execute arbitrary code on affected Java-based systems.',published:getRelativeDateStr(70),exploited:true},
+  {id:'CVE-2026-24054',cvss:9.3,sev:'critical',product:'Windows NTLM',desc:'NTLM hash disclosure via crafted .library-ms files. Weaponised in APT campaigns targeting European and US government entities.',published:getRelativeDateStr(90),exploited:true},
+  {id:'CVE-2026-21334',cvss:8.8,sev:'high',product:'Windows Hyper-V',desc:'NT Kernel Integration VSP privilege escalation enabling container escape. Exploited for lateral movement post-initial compromise.',published:getRelativeDateStr(147),exploited:true},
+  {id:'CVE-2026-0282',cvss:9.0,sev:'critical',product:'Ivanti Connect Secure',desc:'Stack-based buffer overflow allowing unauthenticated remote code execution. Actively exploited by UNC5337 targeting VPN infrastructure.',published:getRelativeDateStr(153),exploited:true},
+  {id:'CVE-2025-55591',cvss:9.6,sev:'critical',product:'Fortinet FortiOS',desc:'Authentication bypass via crafted WebSocket messages to Node.js module. Used to deploy ransomware in financial sector attacks.',published:getRelativeDateStr(147),exploited:true},
+  {id:'CVE-2026-1234',cvss:7.5,sev:'high',product:'OpenSSL 3.x',desc:'Denial of service via crafted certificate chain parsing in PKCS#12 processing. No exploit code public yet.',published:getRelativeDateStr(21),exploited:false},
+];
+
+const DW_RANSOM = [
+  {victim:'First National Bank of Kenya',sector:'Financial',group:'LockBit 4.0',country:'Kenya',date:getRelativeDateStr(9),size:'2.4 TB',deadline:getRelativeDateStr(-5),status:'Active'},
+  {victim:'Lagos State Health Authority',sector:'Healthcare',group:'Cl0p',country:'Nigeria',date:getRelativeDateStr(13),size:'890 GB',deadline:'Leaked',status:'Leaked'},
+  {victim:'Stanbic Investment Partners',sector:'Finance',group:'ALPHV',country:'South Africa',date:getRelativeDateStr(16),size:'1.1 TB',deadline:getRelativeDateStr(0),status:'Negotiating'},
+  {victim:'Continental Manufacturing Co.',sector:'Manufacturing',group:'Black Basta',country:'Germany',date:getRelativeDateStr(11),size:'3.2 TB',deadline:getRelativeDateStr(-2),status:'Active'},
+  {victim:'MedCity Hospital Network',sector:'Healthcare',group:'Play',country:'USA',date:getRelativeDateStr(8),size:'560 GB',deadline:getRelativeDateStr(-8),status:'Active'},
+  {victim:'Gulf Logistics Ltd',sector:'Transport',group:'RansomHub',country:'UAE',date:getRelativeDateStr(7),size:'780 GB',deadline:getRelativeDateStr(-7),status:'Active'},
+];
+
+const DW_LEAKS = [
+  {title:'Nigerian Bank Customer Database',records:'4.2M',src:'KillSec',type:'Financial PII',date:getRelativeDateStr(7),verified:true},
+  {title:'West African Telecom Subscriber Data',records:'8.7M',src:'BF Team',type:'PII + Mobile',date:getRelativeDateStr(12),verified:true},
+  {title:'South African Government ID Scans',records:'1.1M',src:'Anonymous',type:'Govt ID',date:getRelativeDateStr(14),verified:false},
+  {title:'Pan-African Banking Credentials',records:'450K',src:'Stealer Log Dump',type:'Login Creds',date:getRelativeDateStr(9),verified:true},
+  {title:'East African Mobile Money Accounts',records:'2.3M',src:'ShinyHunters',type:'Financial',date:getRelativeDateStr(6),verified:false},
+];
+
+const DW_IAB = [
+  {target:'Financial Institution — Nigeria',access:'Domain Admin via VPN',price:'$15,000',broker:'IntelBroker',sector:'Finance',date:getRelativeDateStr(8)},
+  {target:'E-Commerce Platform — West Africa',access:'Admin Panel + DB',price:'$3,500',broker:'USDoD',sector:'Retail',date:getRelativeDateStr(10)},
+  {target:'Government Ministry — Ghana',access:'Remote Desktop (RDP)',price:'$8,000',broker:'Naz.API',sector:'Government',date:getRelativeDateStr(11)},
+  {target:'Telecom Provider — Kenya',access:'Network Admin + Billing',price:'$22,000',broker:'ShinyHunters',sector:'Telecom',date:getRelativeDateStr(9)},
+  {target:'Insurance Firm — South Africa',access:'VPN + Local Admin',price:'$6,500',broker:'IntelBroker',sector:'Finance',date:getRelativeDateStr(7)},
+];
+
+const FINTECH_BANKING = [
+  {name:'Grandoreiro v4',type:'Banking Trojan',targets:['Brazil','Spain','Mexico','West Africa'],tech:'Web Inject + VNC overlay',date:getRelativeDateStr(9),iocs:47,sev:'critical'},
+  {name:'TrickBot Redux',type:'Banking Trojan',targets:['UK','USA','Germany'],tech:'Form Grabbing + Lateral Movement',date:getRelativeDateStr(13),iocs:89,sev:'high'},
+  {name:'Xenomorph v3',type:'Android Banking Trojan',targets:['EU Banks','Crypto Apps'],tech:'Accessibility Service Abuse + ATS',date:getRelativeDateStr(11),iocs:34,sev:'high'},
+  {name:'BackConnect v2',type:'BOT Hybrid',targets:['US Financial Institutions'],tech:'MITB + 2FA Bypass',date:getRelativeDateStr(16),iocs:21,sev:'medium'},
+  {name:'GootLoader v4',type:'Loader / Initial Access',targets:['Financial sector globally'],tech:'SEO Poisoning + JS dropper',date:getRelativeDateStr(8),iocs:56,sev:'high'},
+];
+
+const FINTECH_PHISHING = [
+  {kit:'MultiBank Pro v8',brands:['Barclays','Chase','HSBC','GTBank'],evasion:'Bot detection + geofencing',price:'$450/mo',date:getRelativeDateStr(9),targets:20},
+  {kit:'CoinStealer Pro',brands:['Binance','Coinbase','Kraken'],evasion:'Cloudflare bypass + 2FA steal',price:'$800/mo',date:getRelativeDateStr(12),targets:15},
+  {kit:'ScamPage v12',brands:['PayPal','Wise','Revolut','N26','Paystack'],evasion:'Browser fingerprint + IP rotation',price:'$250/mo',date:getRelativeDateStr(14),targets:35},
+  {kit:'AfriBank Stealer',brands:['First Bank','Zenith','GTBank','UBA'],evasion:'Regional targeting + OTP intercept',price:'$180/mo',date:getRelativeDateStr(7),targets:8},
+];
+
+const FINTECH_SWIFT = [
+  {incident:'Bangladesh Bank Redux-style Probe',target:'West African SWIFT Member',amount:'$47M attempted',tech:'Modified MT103 + Insider',date:getRelativeDateStr(21),status:'Thwarted'},
+  {incident:'Fraudulent MT202 Injection',target:'Gulf Cooperation Bank',amount:'$12.3M transferred',tech:'Compromised Operator Credentials',date:getRelativeDateStr(9),status:'Under Investigation'},
+  {incident:'SWIFT Alliance Lite2 Supply Chain',target:'Multi-bank',amount:'N/A',tech:'Update server compromise',date:getRelativeDateStr(26),status:'Patched'},
+  {incident:'SWIFT Operator Credential Harvesting',target:'East African banking network',amount:'$3.1M transferred',tech:'Spearphish + MFA Bypass',date:getRelativeDateStr(7),status:'Ongoing'},
+];
+
+const FINTECH_CRYPTO = [
+  {campaign:'ByBit-Style DEX Attack',method:'Smart Contract Exploit',stolen:'$180M',chain:'Ethereum',group:'Lazarus Group',date:getRelativeDateStr(19)},
+  {campaign:'Fake Ledger Update Phishing',method:'Seed Phrase Harvesting',stolen:'$8.4M',chain:'Bitcoin/ETH',group:'Unknown',date:getRelativeDateStr(12)},
+  {campaign:'Ronin Bridge v2 Exploit',method:'Validator Key Compromise',stolen:'$95M',chain:'Ronin/ETH',group:'APT38',date:getRelativeDateStr(9)},
+  {campaign:'Crypto HR Recruitment Scam',method:'Fake Job Offer + Malware',stolen:'$4.2M',chain:'Multiple',group:'Lazarus Group',date:getRelativeDateStr(7)},
+];
+
+const USERS_DATA = [
+  {name:'Admin User',email:'admin@sentinel.io',role:'Admin',status:'active',last:'Just now'},
+  {name:'Sarah Chen',email:'s.chen@sentinel.io',role:'Analyst',status:'active',last:getRelativeTimeStr(60)},
+  {name:'Marcus Williams',email:'m.williams@sentinel.io',role:'Analyst',status:'active',last:getRelativeTimeStr(180)},
+  {name:'Jennifer Okafor',email:'j.okafor@sentinel.io',role:'Viewer',status:'active',last:'Yesterday'},
+  {name:'Chidi Eze',email:'c.eze@sentinel.io',role:'Analyst',status:'active',last:getRelativeTimeStr(2 * 24 * 60)},
+  {name:'Disabled Account',email:'old@sentinel.io',role:'Viewer',status:'disabled',last:'Never'},
+];
+
+const FEED_ITEMS = [
+  {title:'SWIFT payment operations targeted by credential replay and anomalous MT103 approval chains',sev:'critical',cat:'SWIFT / Payments',src:'SWIFT Customer Security Intelligence',time:getRelativeTimeStr(12),publishedDate:getRelativeDateStr(1)},
+  {title:'Banking trojan campaign uses overlay injection against mobile banking and wallet apps',sev:'critical',cat:'Banking Malware',src:'ThreatFox Banking IOCs',time:getRelativeTimeStr(34),publishedDate:getRelativeDateStr(1)},
+  {title:'Ransomware crews increase extortion posts against credit unions, insurers, and payment processors',sev:'high',cat:'Ransomware',src:'Ransomware.live - Financial Victims',time:getRelativeTimeStr(52),publishedDate:getRelativeDateStr(1)},
+  {title:'Card-not-present fraud kit observed harvesting 3DS challenge data from regional merchants',sev:'high',cat:'Card Fraud',src:'PCI Security Standards Council Alerts',time:getRelativeTimeStr(72),publishedDate:getRelativeDateStr(2)},
+  {title:'BEC campaign impersonates treasury teams to redirect supplier settlement accounts',sev:'high',cat:'BEC / Fraud',src:'FS-ISAC Advisories',time:getRelativeTimeStr(120),publishedDate:getRelativeDateStr(2)},
+  {title:'Critical internet-facing VPN and SSO vulnerabilities added to financial exposure watchlist',sev:'critical',cat:'Vulnerability',src:'CISA KEV - Financial Exposure Watch',time:getRelativeTimeStr(160),publishedDate:getRelativeDateStr(2)},
+  {title:'Payment API abuse pattern detected: token stuffing against virtual account endpoints',sev:'high',cat:'API Security',src:'NIBSS / Payments Fraud Signals',time:getRelativeTimeStr(210),publishedDate:getRelativeDateStr(3)},
+  {title:'ATM jackpotting indicators overlap with known FIN7 POS malware infrastructure',sev:'high',cat:'ATM / POS',src:'AlienVault OTX - Finance Pulses',time:getRelativeTimeStr(260),publishedDate:getRelativeDateStr(3)},
+  {title:'Crypto exchange support portals targeted with fake KYC and seed phrase recovery lures',sev:'high',cat:'Crypto / Fintech',src:'URLhaus - Payment Malware URLs',time:getRelativeTimeStr(300),publishedDate:getRelativeDateStr(4)},
+  {title:'Regulatory reminder: banks should harden third-party fintech API schema validation and rate limits',sev:'medium',cat:'Regulatory',src:'CBN Cybersecurity Circulars',time:getRelativeTimeStr(360),publishedDate:getRelativeDateStr(4)},
+];
+
+// ══════════════════════════════════════════════════════════
+// STATE & AUTH
+// ══════════════════════════════════════════════════════════
+let currentRole = 'admin';
+let currentUser = 'admin@sentinel.io';
+let savedApiKey = '';
+let nlQueue = [];
+let aiHistCount = 0;
+let iocsList = [...IOCS_DATA];
+let feedFilter = 'all';
+let currentDWTab = 'ransomware';
+let currentFintechTab = 'banking';
+
+function selectRole(el) {
+  document.querySelectorAll('.role-btn').forEach(b => b.classList.remove('active'));
+  el.classList.add('active');
+  currentRole = el.dataset.role;
+}
+
+function doLogin() {
+  const u = document.getElementById('login-user').value.trim();
+  const p = document.getElementById('login-pass').value;
+  const err = document.getElementById('login-error');
+  if (!u) { err.textContent = 'Enter a username.'; return; }
+  if (p.length < 6) { err.textContent = 'Password must be at least 6 characters.'; return; }
+  currentUser = u;
+  document.getElementById('user-avatar').textContent = u.slice(0,2).toUpperCase();
+  document.getElementById('user-name').textContent = u;
+  document.getElementById('user-role').textContent = currentRole.toUpperCase();
+  if (currentRole !== 'admin') {
+    document.getElementById('admin-section').style.display = 'none';
+    document.getElementById('nav-users').style.display = 'none';
+    document.getElementById('nav-settings').style.display = 'none';
+  }
+  if (currentRole === 'viewer') {
+    document.getElementById('btn-add-feed').style.display = 'none';
+    const addIocBtn = document.getElementById('btn-add-ioc');
+    if (addIocBtn) addIocBtn.style.display = 'none';
+  }
+  const ls = document.getElementById('login-screen');
+  ls.style.opacity = '0';
+  setTimeout(() => {
+    ls.style.display = 'none';
+    const app = document.getElementById('app');
+    app.style.display = 'flex';
+    initApp();
+  }, 450);
+}
+
+function doLogout() {
+  document.getElementById('app').style.display = 'none';
+  const ls = document.getElementById('login-screen');
+  ls.style.opacity = '1';
+  ls.style.display = 'flex';
+  document.getElementById('login-pass').value = '';
+  document.getElementById('login-error').textContent = '';
+}
+
+document.getElementById('login-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+
+// ══════════════════════════════════════════════════════════
+// INIT & TICKER
+// ══════════════════════════════════════════════════════════
+function initApp() {
+  document.getElementById('dash-time').textContent = new Date().toLocaleString();
+  renderTicker();
+  renderDashFeed();
+  renderActivityChart();
+  renderSectors();
+  renderDashActors();
+  renderFeedHealth();
+  renderFeedsTable();
+  renderActors();
+  renderIOCs();
+  renderCVEs();
+  renderDarkWeb();
+  renderFintech();
+  renderUsers();
+  
+  // Start the background data simulation loop
+  if (!window.simIntervalId) {
+    window.simIntervalId = setInterval(simulateDataIngestion, 30000);
+  }
+}
+
+function showPage(id, el) {
+  document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+  const pg = document.getElementById('page-' + id);
+  if (pg) pg.classList.add('active');
+  if (el) el.classList.add('active');
+  document.getElementById('main-area').scrollTop = 0;
+}
+
+function renderTicker() {
+  const msgs = [
+    'CRITICAL: SWIFT payment operations targeted by credential replay and anomalous approval chains',
+    'HIGH: Banking trojan overlay campaign active against mobile banking and wallet apps',
+    'HIGH: Financial ransomware victim claims rising across credit unions, insurers, and processors',
+    'HIGH: Card-not-present fraud kit harvesting 3DS challenge data from merchant checkout flows',
+    'HIGH: BEC campaign impersonates treasury teams to redirect supplier settlement accounts',
+    'CRITICAL: Internet-facing VPN and SSO flaws added to financial exposure watchlist',
+    'HIGH: Payment API token stuffing observed against virtual account endpoints',
+    'HIGH: ATM/POS indicators overlap with FIN7 infrastructure',
+    'MEDIUM: CBN reminder - harden fintech API schema validation and rate limits',
+  ];
+  const el = document.getElementById('ticker-inner');
+  el.innerHTML = [...msgs, ...msgs].map(m => `<span style="padding:0 40px">${m}</span>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// DASHBOARD RENDERS
+// ══════════════════════════════════════════════════════════
+function refreshDash() {
+  document.getElementById('dash-time').textContent = new Date().toLocaleString();
+  const count = Math.floor(Math.random() * 2) + 1;
+  for (let i = 0; i < count; i++) {
+    simulateDataIngestion();
+  }
+  notify(`Dashboard refreshed. Captured ${count} new intelligence event(s).`);
+}
+
+function renderDashFeed() {
+  document.getElementById('dash-feed-list').innerHTML = FEED_ITEMS.map((item, idx) => `
+    <div class="feed-item ${item.sev}" onclick="showFeedDetail(${idx})">
+      <div class="feed-title">${item.title}</div>
+      <div class="feed-meta">
+        <span class="badge badge-${sevColor(item.sev)}">${item.sev.toUpperCase()}</span>
+        <span class="badge badge-gray">${item.cat}</span>
+        <span class="feed-time">${item.src} · Ingested: ${item.time} · Published: ${item.publishedDate}</span>
+      </div>
+    </div>`).join('');
+}
+
+function renderActivityChart() {
+  const days = ['Mon','Tue','Wed','Thu','Fri','Sat','Sun'];
+  const vals = [23,41,35,58,72,48,67];
+  const max = Math.max(...vals);
+  document.getElementById('activity-chart').innerHTML = days.map((d,i) => {
+    const h = Math.round(vals[i]/max*100);
+    const color = vals[i]>55?'var(--accent-red)':vals[i]>40?'var(--accent-amber)':'var(--accent-cyan)';
+    return `<div class="bar" style="height:${h}%;background:${color}" title="${d}: ${vals[i]} events"><span class="bar-label">${d}</span></div>`;
+  }).join('');
+}
+
+function renderSectors() {
+  const s = [{n:'Financial Services',p:38},{n:'Healthcare',p:22},{n:'Government',p:18},{n:'Technology',p:14},{n:'Energy',p:8}];
+  document.getElementById('sector-bars').innerHTML = s.map(x => `
+    <div style="margin-bottom:7px">
+      <div style="display:flex;justify-content:space-between;font-size:11px;margin-bottom:3px">
+        <span style="color:var(--text-secondary)">${x.n}</span>
+        <span style="color:var(--text-muted);font-family:var(--font-mono)">${x.p}%</span>
+      </div>
+      <div class="progress-bar" style="width:100%"><div class="progress-fill" style="width:${x.p}%;background:var(--accent-cyan)"></div></div>
+    </div>`).join('');
+}
+
+function renderDashActors() {
+  document.getElementById('dash-actors').innerHTML = ACTORS_DATA.slice(0,5).map((a, idx) => `
+    <tr style="cursor:pointer" onclick="showActorDetail(${idx})">
+      <td><strong style="color:var(--text-primary)">${a.name}</strong></td>
+      <td><span class="badge badge-gray">${a.origin}</span></td>
+      <td style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted)">${a.lastSeen}</td>
+      <td><span class="badge badge-${a.severity==='critical'?'red':'amber'}">${a.severity.toUpperCase()}</span></td>
+    </tr>`).join('');
+}
+
+function renderFeedHealth() {
+  document.getElementById('feed-health').innerHTML = FEEDS_DATA.slice(0,7).map(f => `
+    <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
+      <div style="display:flex;align-items:center;gap:8px">
+        <div class="status-dot ${f.status}"></div>
+        <span style="font-size:12px;color:var(--text-secondary)">${f.name}</span>
+      </div>
+      <span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">${f.last} · ${f.items} items</span>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// FEEDS PAGE
+// ══════════════════════════════════════════════════════════
+function switchTab(ctx, val, el) {
+  if (ctx === 'feed') {
+    feedFilter = val;
+    document.querySelectorAll('#feed-tabs .tab').forEach(t => t.classList.remove('active'));
+    el.classList.add('active');
+    renderFeedsTable();
+  }
+}
+
+function renderFeedsTable() {
+  const list = feedFilter === 'all' ? FEEDS_DATA : FEEDS_DATA.filter(f => f.type === feedFilter);
+  document.getElementById('feeds-tbody').innerHTML = list.map((f, idx) => `
+    <tr>
+      <td><strong style="color:var(--text-primary)">${f.name}</strong><br><span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">${f.url}</span></td>
+      <td><span class="badge badge-${f.type==='darkweb'?'red':f.type==='cve'?'amber':f.type==='vendor'?'purple':'cyan'}">${f.type.toUpperCase()}</span></td>
+      <td><div style="display:flex;align-items:center;gap:6px"><div class="status-dot ${f.status}"></div><span style="font-size:11px;color:var(--text-secondary)">${f.status}</span></div></td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${f.last}</td>
+      <td style="font-family:var(--font-mono);font-size:12px;color:var(--accent-cyan)">${f.items}</td>
+      <td>
+        <button class="btn btn-sm" style="margin-right:4px" onclick="notify('Refreshing ${escHtml(f.name)}…')"><i class="ti ti-refresh"></i></button>
+        <button class="btn btn-sm btn-ai" onclick="aiFeedSummary('${escHtml(f.name)}')"><i class="ti ti-brain"></i></button>
+      </td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// THREAT ACTORS
+// ══════════════════════════════════════════════════════════
+function renderActors() {
+  const q = (document.getElementById('actor-search')?.value || '').toLowerCase();
+  const list = q ? ACTORS_DATA.filter(a => a.name.toLowerCase().includes(q) || a.origin.toLowerCase().includes(q) || a.malware.join(' ').toLowerCase().includes(q)) : ACTORS_DATA;
+  document.getElementById('actor-grid').innerHTML = list.map((a, idx) => `
+    <div class="card" style="cursor:pointer" onclick="showActorDetail(${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:12px">
+        <div>
+          <div style="font-size:15px;font-weight:600;color:var(--text-primary);margin-bottom:2px">${a.name}</div>
+          <div style="font-size:11px;color:var(--text-muted)">AKA: ${a.aka}</div>
+        </div>
+        <span class="badge badge-${a.severity==='critical'?'red':'amber'}">${a.severity.toUpperCase()}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        ${[['Origin',a.origin],['Motivation',a.motivation],['Last Seen',a.lastSeen,'amber'],['IOCs',a.iocs,'cyan']].map(([l,v,c])=>`
+          <div><div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:2px">${l}</div>
+          <div style="font-size:12px;color:${c?'var(--accent-'+c+')':'var(--text-secondary)'};font-family:${c?'var(--font-mono)':'inherit'}">${v}</div></div>`).join('')}
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">MITRE ATT&amp;CK</div>
+        <div class="mitre-grid">${a.mitre.map(t=>`<span class="mitre-tag">${t}</span>`).join('')}</div>
+      </div>
+      <div style="margin-bottom:10px">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Malware Arsenal</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${a.malware.map(m=>`<span class="badge badge-red">${m}</span>`).join('')}</div>
+      </div>
+      <div style="margin-bottom:12px">
+        <div style="font-size:9px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:5px">Sectors Targeted</div>
+        <div style="display:flex;flex-wrap:wrap;gap:4px">${a.sectors.map(s=>`<span class="badge badge-gray">${s}</span>`).join('')}</div>
+      </div>
+      <div style="display:flex;gap:6px" onclick="event.stopPropagation()">
+        <button class="btn btn-sm btn-ai" onclick="aiActorProfileFor('${escHtml(a.name)}')" style="flex:1;justify-content:center"><i class="ti ti-brain"></i> AI Profile</button>
+        <button class="btn btn-sm" onclick="showCampaigns('${escHtml(a.name)}')" style="flex:1;justify-content:center"><i class="ti ti-timeline"></i> Campaigns</button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// IOCs
+// ══════════════════════════════════════════════════════════
+function renderIOCs() {
+  const q = (document.getElementById('ioc-search')?.value || '').toLowerCase();
+  const tf = document.getElementById('ioc-type-f')?.value || '';
+  const list = iocsList.filter(i => {
+    const txt = (i.value + i.actor + i.tags.join(' ')).toLowerCase();
+    return (!q || txt.includes(q)) && (!tf || i.type === tf);
+  });
+  document.getElementById('ioc-count').textContent = list.length + ' records';
+  document.getElementById('ioc-tbody').innerHTML = list.map((i,idx) => `
+    <tr style="cursor:pointer" onclick="showIOCDetail(${idx})">
+      <td><span class="badge badge-${iocTypeBadge(i.type)}">${i.type}</span></td>
+      <td class="ioc-val" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${i.value}">${i.value}</td>
+      <td style="color:var(--text-secondary);white-space:nowrap">${i.actor}</td>
+      <td>
+        <div style="display:flex;align-items:center;gap:6px">
+          <div class="progress-bar" style="width:50px"><div class="progress-fill" style="width:${i.conf}%;background:${i.conf>90?'var(--accent-green)':i.conf>70?'var(--accent-amber)':'var(--accent-red)'}"></div></div>
+          <span style="font-size:10px;font-family:var(--font-mono);color:var(--text-muted)">${i.conf}%</span>
+        </div>
+      </td>
+      <td>${i.tags.map(t=>`<span class="badge badge-gray" style="margin-right:2px">${t}</span>`).join('')}</td>
+      <td style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap">${i.date}</td>
+      <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-danger" onclick="removeIOC(${idx})" title="Remove"><i class="ti ti-trash"></i></button></td>
+    </tr>`).join('');
+}
+
+function removeIOC(idx) {
+  if (currentRole === 'viewer') { notify('Viewers cannot modify data.'); return; }
+  iocsList.splice(idx, 1);
+  renderIOCs();
+  notify('IOC removed.');
+}
+
+// ══════════════════════════════════════════════════════════
+// CVEs
+// ══════════════════════════════════════════════════════════
+function renderCVEs() {
+  document.getElementById('cve-list-el').innerHTML = CVES_DATA.map((c, idx) => `
+    <div class="card" style="margin-bottom:10px;cursor:pointer" onclick="showCVEDetail(${idx})">
+      <div style="display:flex;align-items:flex-start;gap:16px">
+        <div style="min-width:160px">
+          <div style="font-family:var(--font-mono);font-size:13px;font-weight:600;color:var(--accent-cyan)">${c.id}</div>
+          <div style="font-size:10px;color:var(--text-muted);margin-top:3px">${c.published}</div>
+        </div>
+        <div style="flex:1">
+          <div style="display:flex;align-items:center;gap:7px;margin-bottom:6px;flex-wrap:wrap">
+            <span class="badge badge-${c.sev==='critical'?'red':'amber'}">${c.sev.toUpperCase()}</span>
+            <span style="font-family:var(--font-mono);font-size:12px;color:${c.cvss>=9?'var(--accent-red)':c.cvss>=7?'var(--accent-amber)':'var(--accent-green)'}">CVSS ${c.cvss}</span>
+            <span class="badge badge-gray">${c.product}</span>
+            ${c.exploited?`<span class="badge badge-red"><span class="pulse-dot" style="width:5px;height:5px;margin-right:3px"></span>IN THE WILD</span>`:''}
+          </div>
+          <div style="font-size:12px;color:var(--text-secondary);line-height:1.6">${c.desc}</div>
+        </div>
+        <button class="btn btn-sm btn-ai" onclick="event.stopPropagation();aiSingleCVE('${c.id}')" style="flex-shrink:0"><i class="ti ti-brain"></i></button>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// DARK WEB
+// ══════════════════════════════════════════════════════════
+function switchDWTab(tab, el) {
+  currentDWTab = tab;
+  document.querySelectorAll('#page-darkweb .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['ransomware','leaks','iab'].forEach(t => {
+    document.getElementById(`dw-${t}-tab`).style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+function renderDarkWeb() {
+  document.getElementById('dw-ransom-list').innerHTML = DW_RANSOM.map((v, idx) => `
+    <div class="dw-item" style="cursor:pointer" onclick="showDWDetail('ransomware', ${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div>
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:5px">${v.victim}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px">
+            <span class="badge badge-red">${v.group}</span>
+            <span class="badge badge-gray">${v.sector}</span>
+            <span class="badge badge-gray">${v.country}</span>
+            <span class="badge badge-${v.status==='Active'?'amber':v.status==='Leaked'?'red':'purple'}">${v.status}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted)">
+            Data: <span style="color:var(--accent-red);font-family:var(--font-mono)">${v.size}</span> ·
+            Deadline: <span style="color:var(--accent-amber);font-family:var(--font-mono)">${v.deadline}</span> ·
+            Claimed: ${v.date}
+          </div>
+        </div>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('dw-leaks-list').innerHTML = DW_LEAKS.map((l, idx) => `
+    <div class="dw-item" style="cursor:pointer" onclick="showDWDetail('leaks', ${idx})">
+      <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:5px">${l.title}</div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+        <span class="badge badge-red">${l.records} Records</span>
+        <span class="badge badge-gray">${l.type}</span>
+        <span class="badge badge-${l.verified?'red':'gray'}">${l.verified?'VERIFIED':'UNVERIFIED'}</span>
+      </div>
+      <div style="font-size:11px;color:var(--text-muted)">Source: ${l.src} · ${l.date}</div>
+    </div>`).join('');
+
+  document.getElementById('dw-iab-list').innerHTML = DW_IAB.map((i, idx) => `
+    <div class="dw-item" style="cursor:pointer" onclick="showDWDetail('iab', ${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:12px">
+        <div style="flex:1">
+          <div style="font-size:14px;font-weight:600;color:var(--text-primary);margin-bottom:5px">${i.target}</div>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:6px">
+            <span class="badge badge-cyan">${i.access}</span>
+            <span class="badge badge-gray">${i.sector}</span>
+          </div>
+          <div style="font-size:11px;color:var(--text-muted)">Broker: <span style="color:var(--accent-purple)">${i.broker}</span> · Listed: ${i.date}</div>
+        </div>
+        <div style="text-align:right;flex-shrink:0">
+          <div style="font-size:18px;font-weight:700;font-family:var(--font-mono);color:var(--accent-green)">${i.price}</div>
+          <div style="font-size:10px;color:var(--text-muted)">asking price</div>
+        </div>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// FINTECH
+// ══════════════════════════════════════════════════════════
+function switchFintechTab(tab, el) {
+  currentFintechTab = tab;
+  document.querySelectorAll('#page-fintech .tab').forEach(t => t.classList.remove('active'));
+  el.classList.add('active');
+  ['banking','phishing','carding','swift','crypto'].forEach(t => {
+    document.getElementById(`fintech-${t}-tab`).style.display = t === tab ? 'block' : 'none';
+  });
+}
+
+function renderFintech() {
+  document.getElementById('fintech-banking-tab').innerHTML = FINTECH_BANKING.map((m, idx) => `
+    <div class="card" style="margin-bottom:10px;cursor:pointer" onclick="showFintechDetail('banking', ${idx})">
+      <div style="display:flex;align-items:center;gap:12px;margin-bottom:10px">
+        <div style="flex:1"><div style="font-size:15px;font-weight:600;color:var(--text-primary)">${m.name}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${m.tech}</div></div>
+        <span class="badge badge-${m.sev==='critical'?'red':'amber'}">${m.sev.toUpperCase()}</span>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:8px">
+        <span class="badge badge-purple">${m.type}</span>
+        ${m.targets.map(t=>`<span class="badge badge-gray">${t}</span>`).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-muted)">IOCs: <span style="color:var(--accent-cyan);font-family:var(--font-mono)">${m.iocs}</span> · Updated: ${m.date}</div>
+    </div>`).join('');
+
+  document.getElementById('fintech-phishing-tab').innerHTML = FINTECH_PHISHING.map((k, idx) => `
+    <div class="card" style="margin-bottom:10px;cursor:pointer" onclick="showFintechDetail('phishing', ${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px">
+        <div><div style="font-size:15px;font-weight:600;color:var(--text-primary)">${k.kit}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${k.evasion}</div></div>
+        <div style="font-family:var(--font-mono);font-size:14px;font-weight:600;color:var(--accent-red)">${k.price}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap;margin-bottom:5px">${k.brands.map(b=>`<span class="badge badge-amber">${b}</span>`).join('')}</div>
+      <div style="font-size:11px;color:var(--text-muted)">Targeting ${k.targets} brands · ${k.date}</div>
+    </div>`).join('');
+
+  document.getElementById('fintech-carding-tab').innerHTML = `
+    <div class="card">
+      <div style="text-align:center;padding:24px 0">
+        <i class="ti ti-credit-card" style="font-size:42px;color:var(--accent-amber);display:block;margin-bottom:12px"></i>
+        <div style="font-size:18px;font-weight:600;color:var(--text-primary);margin-bottom:6px">3 Active Carding Forums Monitored</div>
+        <div style="font-size:13px;color:var(--text-muted);margin-bottom:20px">Joker's Stash successor · BriansClub · Club2CRD</div>
+        <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:12px;max-width:480px;margin:0 auto">
+          <div class="stat-card"><div class="stat-label">Cards Listed</div><div class="stat-value" style="font-size:20px;color:var(--accent-red)">2.3M</div></div>
+          <div class="stat-card"><div class="stat-label">Avg Price</div><div class="stat-value" style="font-size:20px;color:var(--accent-amber)">$18</div></div>
+          <div class="stat-card"><div class="stat-label">New Today</div><div class="stat-value" style="font-size:20px;color:var(--accent-cyan)">4,821</div></div>
+        </div>
+      </div>
+    </div>`;
+
+  document.getElementById('fintech-swift-tab').innerHTML = FINTECH_SWIFT.map((s, idx) => `
+    <div class="card" style="margin-bottom:10px;cursor:pointer" onclick="showFintechDetail('swift', ${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:12px">
+        <div><div style="font-size:14px;font-weight:600;color:var(--text-primary)">${s.incident}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${s.target}</div></div>
+        <span class="badge badge-${s.status==='Thwarted'?'green':s.status==='Patched'?'cyan':'amber'}" style="flex-shrink:0">${s.status}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap">
+        <span class="badge badge-red">${s.amount}</span>
+        <span class="badge badge-gray">${s.tech}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto;font-family:var(--font-mono)">${s.date}</span>
+      </div>
+    </div>`).join('');
+
+  document.getElementById('fintech-crypto-tab').innerHTML = FINTECH_CRYPTO.map((c, idx) => `
+    <div class="card" style="margin-bottom:10px;cursor:pointer" onclick="showFintechDetail('crypto', ${idx})">
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:8px;gap:12px">
+        <div><div style="font-size:14px;font-weight:600;color:var(--text-primary)">${c.campaign}</div><div style="font-size:11px;color:var(--text-muted);margin-top:2px">${c.method}</div></div>
+        <div style="font-family:var(--font-mono);font-size:16px;font-weight:700;color:var(--accent-red);flex-shrink:0">${c.stolen}</div>
+      </div>
+      <div style="display:flex;gap:5px;flex-wrap:wrap">
+        <span class="badge badge-amber">${c.chain}</span>
+        <span class="badge badge-red">${c.group}</span>
+        <span style="font-size:10px;color:var(--text-muted);margin-left:auto;font-family:var(--font-mono)">${c.date}</span>
+      </div>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// USERS
+// ══════════════════════════════════════════════════════════
+function renderUsers() {
+  document.getElementById('users-tbody').innerHTML = USERS_DATA.map((u, i) => `
+    <tr>
+      <td><strong style="color:var(--text-primary)">${u.name}</strong></td>
+      <td style="font-family:var(--font-mono);font-size:11px">${u.email}</td>
+      <td><span class="badge badge-${u.role==='Admin'?'red':u.role==='Analyst'?'cyan':'gray'}">${u.role.toUpperCase()}</span></td>
+      <td><span class="badge badge-${u.status==='active'?'green':'gray'}">${u.status}</span></td>
+      <td style="font-size:11px;color:var(--text-muted);font-family:var(--font-mono)">${u.last}</td>
+      <td>${currentRole==='admin'?`
+        <button class="btn btn-sm" style="margin-right:4px" onclick="editUser(${i})"><i class="ti ti-edit"></i></button>
+        <button class="btn btn-sm btn-danger" onclick="deleteUser(${i})"><i class="ti ti-trash"></i></button>`
+        :'<span style="color:var(--text-muted);font-size:11px">—</span>'}</td>
+    </tr>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// NEWSLETTER CURATION
+// ══════════════════════════════════════════════════════════
+function addToNLQueue(title) {
+  if (!nlQueue.includes(title)) nlQueue.push(title);
+  const count = document.getElementById('nl-count');
+  count.textContent = nlQueue.length + ' items';
+  const list = document.getElementById('nl-queue-list');
+  list.innerHTML = nlQueue.map((t,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <i class="ti ti-check" style="color:var(--accent-green);font-size:14px"></i>
+      <span style="font-size:12px;color:var(--text-secondary);flex:1;line-height:1.3">${t}</span>
+      <button onclick="removeFromQueue(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+  notify('Added to newsletter queue. View in Newsletter page.');
+}
+
+function removeFromQueue(i) {
+  nlQueue.splice(i, 1);
+  document.getElementById('nl-count').textContent = nlQueue.length + ' items';
+  const list = document.getElementById('nl-queue-list');
+  if (!nlQueue.length) { list.innerHTML = '<div style="color:var(--text-muted);font-size:13px;padding:16px 0;text-align:center">Click feed items on the Dashboard to queue them.</div>'; return; }
+  list.innerHTML = nlQueue.map((t,i) => `
+    <div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid var(--border)">
+      <i class="ti ti-check" style="color:var(--accent-green);font-size:14px"></i>
+      <span style="font-size:12px;color:var(--text-secondary);flex:1;line-height:1.3">${t}</span>
+      <button onclick="removeFromQueue(${i})" style="background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:13px"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+}
+
+// ══════════════════════════════════════════════════════════
+// MODALS & DETAIL VIEWS
+// ══════════════════════════════════════════════════════════
+function showModal(html) {
+  document.getElementById('modal-inner').innerHTML = html;
+  document.getElementById('modal-overlay').style.display = 'flex';
+}
+function closeModal() { document.getElementById('modal-overlay').style.display = 'none'; }
+function closeModalOnBg(e) { if (e.target === document.getElementById('modal-overlay')) closeModal(); }
+
+function showFeedDetail(idx) {
+  const item = FEED_ITEMS[idx];
+  if (!item) return;
+  const originalDate = item.publishedDate || getRelativeDateStr(1);
+  const detailHtml = `
+    <div class="modal-title">Threat Intelligence Bulletin <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+      <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.title}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge badge-${sevColor(item.sev)}">${item.sev.toUpperCase()}</span>
+        <span class="badge badge-gray">${item.cat}</span>
+        <span class="badge badge-cyan">${item.src}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:var(--text-secondary)">
+        <div><strong>Collected/Ingested At:</strong> <span style="color:var(--accent-cyan)">${item.time}</span></div>
+        <div><strong>First Seen/Discovered:</strong> <span style="color:var(--accent-amber)">${originalDate}</span></div>
+      </div>
+    </div>
+    <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+      <strong>Threat Intel Insight:</strong><br>
+      This telemetry has been ingested from a secure African financial intelligence feed partner. Initial signals show targeting patterns associated with banking infrastructure and payment providers in the region.
+      <br><br>
+      <strong>Compensating Security Actions:</strong><br>
+      1. Deploy emergency IP blocks across edge firewall filters.<br>
+      2. Verify integrity signatures of public-facing payment portals and APIs.<br>
+      3. Review logs for indicators matching discovery date ${originalDate}.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(item)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn" style="flex:1;justify-content:center" onclick='addToNLQueue("${escHtml(item.title)}")'><i class="ti ti-plus"></i> Queue Newsletter</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+
+function showIOCDetail(idx) {
+  const item = iocsList[idx];
+  if (!item) return;
+  const detailHtml = `
+    <div class="modal-title">IOC Telemetry Record <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+      <div style="font-size:10px;color:var(--text-muted);text-transform:uppercase;margin-bottom:4px">Indicator Value</div>
+      <div class="ioc-val" style="font-size:15px;margin-bottom:12px">${item.value}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge badge-${iocTypeBadge(item.type)}">${item.type}</span>
+        <span class="badge badge-red">Actor: ${item.actor}</span>
+        <span class="badge badge-amber">Confidence: ${item.conf}%</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:var(--text-secondary)">
+        <div><strong>Date Logged:</strong> ${item.date}</div>
+        <div><strong>Tags:</strong> ${item.tags.join(', ')}</div>
+      </div>
+    </div>
+    <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+      <strong>Analyst Notes:</strong><br>
+      This indicator has been validated with a confidence level of ${item.conf}%. It is strongly associated with operations of the adversary group "${item.actor}". Network defenders should configure WAF/perimeter policies to reject traffic originating from or targeting this indicator.
+      <br><br>
+      <strong>Defensive Actions:</strong><br>
+      - **Firewall**: Deploy block rule.<br>
+      - **SIEM Query**: Run retrospective search on network authentication logs for connections matching this node.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(item)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+
+function showCVEDetail(idx) {
+  const item = CVES_DATA[idx];
+  if (!item) return;
+  const detailHtml = `
+    <div class="modal-title">CVE Vulnerability Advisory <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:8px">
+        <div style="font-size:18px;font-weight:700;color:var(--accent-cyan)">${item.id}</div>
+        <span class="badge badge-${cveSeverityColor(item.cvss)}">CVSS ${item.cvss}</span>
+      </div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:10px">
+        <span class="badge badge-gray">Product: ${item.product}</span>
+        <span class="badge badge-gray">Published: ${item.published}</span>
+        ${item.exploited ? '<span class="badge badge-red">Active Exploitation</span>' : ''}
+      </div>
+      <div style="font-size:12px;color:var(--text-secondary);line-height:1.5">${item.desc}</div>
+    </div>
+    <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+      <strong>Vulnerability Insight:</strong><br>
+      Exploitation of this vulnerability allows remote attackers to compromise affected ${item.product} installations. Given the active exploitation vectors, this represents an immediate threat to internet-facing portals and API gateways within financial organizations.
+      <br><br>
+      <strong>Remediation Pipeline:</strong><br>
+      1. **Immediate Patch**: Deploy vendor update for affected endpoints.<br>
+      2. **Compensating Security**: If patching is delayed, isolate vulnerable gateways behind strict IP access controls and enable WAF signature matching for public endpoints.
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(item)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn btn-ai" style="flex:1;justify-content:center" onclick="closeModal();aiSingleCVE('${item.id}')"><i class="ti ti-brain"></i> Detailed AI Analysis</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+function cveSeverityColor(score) { return score>=9?'red':score>=7?'amber':'cyan'; }
+
+function showDWDetail(type, idx) {
+  let item;
+  let title = '';
+  if (type === 'ransomware') {
+    item = DW_RANSOM[idx];
+    title = `Ransomware Claim: ${item.victim}`;
+  } else if (type === 'leaks') {
+    item = DW_LEAKS[idx];
+    title = `Data Leak Alert: ${item.title}`;
+  } else if (type === 'iab') {
+    item = DW_IAB[idx];
+    title = `Initial Access Broker Listing`;
+  }
+  if (!item) return;
+  
+  let bodyHtml = '';
+  if (type === 'ransomware') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.victim}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-red">Group: ${item.group}</span>
+          <span class="badge badge-gray">Sector: ${item.sector}</span>
+          <span class="badge badge-gray">Country: ${item.country}</span>
+          <span class="badge badge-cyan">Size: ${item.size}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Claimed At:</strong> ${item.date} · <strong>Deadline:</strong> ${item.deadline} · <strong>Status:</strong> ${item.status}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Incident Insight:</strong><br>
+        The threat group "${item.group}" has posted a claim of access to ${item.victim}. Compromise of internal directories is reported, with an exfiltrated data size of ${item.size}. Immediate security sweeps should verify there is no unauthorized ingress/egress channel or active credential leak related to partner nodes in that country/region.
+      </div>
+    `;
+  } else if (type === 'leaks') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.title}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-red">Records: ${item.records}</span>
+          <span class="badge badge-gray">Type: ${item.type}</span>
+          <span class="badge badge-cyan">Source: ${item.src}</span>
+          <span class="badge badge-${item.verified?'red':'gray'}">${item.verified?'VERIFIED':'UNVERIFIED'}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Date Discovered:</strong> ${item.date}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Leak Analysis:</strong><br>
+        A data dump titled "${item.title}" containing approximately ${item.records} records has been leaked. Our threat scanning verifies this contains "${item.type}" records. Organizations operating payment gateways in the region should immediately run password resets and invalidate active sessions for potentially exposed customer emails.
+      </div>
+    `;
+  } else if (type === 'iab') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.target}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-purple">Access: ${item.access}</span>
+          <span class="badge badge-gray">Sector: ${item.sector}</span>
+          <span class="badge badge-cyan">Broker: ${item.broker}</span>
+          <span class="badge badge-green">Price: ${item.price}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Listed Date:</strong> ${item.date}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Access Alert Insight:</strong><br>
+        An initial access broker "${item.broker}" is auctioning access to a corporate network described as "${item.target}". The access type is reported as "${item.access}" with an asking price of ${item.price}. This is a critical indicator of pre-ransomware compromise. Active active directory logins and VPN logs should be audited.
+      </div>
+    `;
+  }
+  
+  const detailHtml = `
+    <div class="modal-title">${title} <button class="modal-close" onclick="closeModal()">×</button></div>
+    ${bodyHtml}
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(item)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+
+function showFintechDetail(type, idx) {
+  let item;
+  let title = '';
+  if (type === 'banking') {
+    item = FINTECH_BANKING[idx];
+    title = `Banking Malware: ${item.name}`;
+  } else if (type === 'phishing') {
+    item = FINTECH_PHISHING[idx];
+    title = `Phishing Kit: ${item.kit}`;
+  } else if (type === 'swift') {
+    item = FINTECH_SWIFT[idx];
+    title = `SWIFT Threat Incident`;
+  } else if (type === 'crypto') {
+    item = FINTECH_CRYPTO[idx];
+    title = `Crypto Campaign Incident`;
+  }
+  if (!item) return;
+
+  let bodyHtml = '';
+  if (type === 'banking') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.name}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-red">Severity: ${item.sev.toUpperCase()}</span>
+          <span class="badge badge-purple">${item.type}</span>
+          <span class="badge badge-cyan">Indicators: ${item.iocs}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Targets:</strong> ${item.targets.join(', ')} · <strong>Tech:</strong> ${item.tech}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Methodology Analysis:</strong><br>
+        "${item.name}" represents a highly specialized vector targeting banking infrastructure. The malware employs techniques like "${item.tech}" to hijack active client sessions and execute fraudulent transfers. Banks in the region should verify overlay protection mechanisms on retail banking pages.
+      </div>
+    `;
+  } else if (type === 'phishing') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.kit}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-amber">Brands: ${item.brands.join(', ')}</span>
+          <span class="badge badge-purple">Price: ${item.price}</span>
+          <span class="badge badge-cyan">Targets: ${item.targets} brands</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Evasion Strategy:</strong> ${item.evasion}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Kit Capabilities:</strong><br>
+        This phishing framework targets regional customers by mimicking popular fintech login panels. With advanced bypass features like "${item.evasion}", it captures live one-time passwords (OTP) to orchestrate instant account takeovers. Implement multi-factor push notifications instead of SMS OTP to block interception.
+      </div>
+    `;
+  } else if (type === 'swift') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.incident}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-red">Amount: ${item.amount}</span>
+          <span class="badge badge-gray">Target: ${item.target}</span>
+          <span class="badge badge-amber">Status: ${item.status}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Tech:</strong> ${item.tech} · <strong>Date:</strong> ${item.date}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>SWIFT Integrity Advisory:</strong><br>
+        A transaction tampering attempt described as "${item.incident}" was reported at "${item.target}" involving "${item.amount}". The threat vector used "${item.tech}". Financial institutions must run continuous integrity checks on SWIFT Alliance interfaces and restrict transfer authorization keys to dedicated, offline token-based environments.
+      </div>
+    `;
+  } else if (type === 'crypto') {
+    bodyHtml = `
+      <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+        <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:8px">${item.campaign}</div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+          <span class="badge badge-red">Stolen: ${item.stolen}</span>
+          <span class="badge badge-purple">Chain: ${item.chain}</span>
+          <span class="badge badge-cyan">Attribution: ${item.group}</span>
+        </div>
+        <div style="font-size:12px;color:var(--text-secondary)"><strong>Method:</strong> ${item.method} · <strong>Date:</strong> ${item.date}</div>
+      </div>
+      <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+        <strong>Crypto Threat Insight:</strong><br>
+        The actor group "${item.group}" targeted decentralized wallets and exchanges using "${item.method}" resulting in a theft of ${item.stolen}. All hot wallet nodes should be audited and daily withdrawal ceilings enforced.
+      </div>
+    `;
+  }
+
+  const detailHtml = `
+    <div class="modal-title">${title} <button class="modal-close" onclick="closeModal()">×</button></div>
+    ${bodyHtml}
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(item)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+
+function showActorDetail(idx) {
+  const actor = ACTORS_DATA[idx];
+  if (!actor) return;
+  const detailHtml = `
+    <div class="modal-title">Threat Actor Profile: ${actor.name} <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
+      <div style="font-size:16px;font-weight:600;color:var(--text-primary);margin-bottom:4px">${actor.name}</div>
+      <div style="font-size:11px;color:var(--text-muted);margin-bottom:12px">AKA: ${actor.aka}</div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap;margin-bottom:12px">
+        <span class="badge badge-${actor.severity==='critical'?'red':'amber'}">Severity: ${actor.severity.toUpperCase()}</span>
+        <span class="badge badge-gray">Origin: ${actor.origin}</span>
+        <span class="badge badge-cyan">Tracked IOCs: ${actor.iocs}</span>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:10px;font-size:12px;color:var(--text-secondary)">
+        <div><strong>Motivation:</strong> ${actor.motivation}</div>
+        <div><strong>Last Active:</strong> ${actor.lastSeen}</div>
+      </div>
+    </div>
+    <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
+      <strong>Threat Profile Insight:</strong><br>
+      "${actor.name}" is a sophisticated cyber threat group attributed to ${actor.origin}, operating primarily with ${actor.motivation} motivations. The group has actively targeted the following sectors: **${actor.sectors.join(', ')}**.
+      <br><br>
+      <strong>Malware Arsenal:</strong> ${actor.malware.join(', ')}
+      <br>
+      <strong>MITRE ATT&amp;CK Mapping:</strong> ${actor.mitre.join(', ')}
+      <br>
+      <strong>Active Campaigns:</strong> ${actor.campaigns.join(', ')}
+    </div>
+    <div style="display:flex;gap:8px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick='exportEvent(${JSON.stringify(actor)})'><i class="ti ti-download"></i> Export JSON</button>
+      <button class="btn btn-ai" style="flex:1;justify-content:center" onclick="closeModal();aiActorProfileFor('${escHtml(actor.name)}')"><i class="ti ti-brain"></i> Generate Full AI Profile</button>
+      <button class="btn" onclick="closeModal()">Close</button>
+    </div>
+  `;
+  showModal(detailHtml);
+}
+
+function openAddFeed() {
+  if (currentRole === 'viewer') { notify('Viewers cannot add feeds.'); return; }
+  showModal(`
+    <div class="modal-title">Add Intelligence Feed <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="input-group"><label>Feed Name</label><input id="m-fname" placeholder="e.g., SABRIC Threat Portal"></div>
+    <div class="input-group"><label>URL / Endpoint</label><input id="m-furl" placeholder="https://sabric.co.za/feed"></div>
+    <div class="input-group"><label>Type</label>
+      <select id="m-ftype"><option>RSS</option><option>vendor</option><option>darkweb</option><option>cve</option></select>
+    </div>
+    <div class="input-group"><label>Fetch Interval</label>
+      <select><option>Every 15 min</option><option>Every 30 min</option><option>Hourly</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick="addFeed()"><i class="ti ti-plus"></i> Add Feed</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function addFeed() {
+  const name = document.getElementById('m-fname')?.value.trim();
+  const url = document.getElementById('m-furl')?.value.trim();
+  const type = document.getElementById('m-ftype')?.value;
+  if (!name || !url) { notify('Fill in name and URL.'); return; }
+  FEEDS_DATA.push({name,type,status:'live',last:'Just added',items:0,url});
+  renderFeedsTable();
+  renderFeedHealth();
+  closeModal();
+  notify(`Feed "${name}" added.`);
+}
+
+function openAddIOC() {
+  if (currentRole === 'viewer') { notify('Viewers cannot add IOCs.'); return; }
+  showModal(`
+    <div class="modal-title">Add IOC <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="input-group"><label>IOC Type</label>
+      <select id="m-itype"><option>IP</option><option>Domain</option><option>SHA256</option><option>URL</option><option>Email</option><option>BTC Wallet</option></select>
+    </div>
+    <div class="input-group"><label>Value</label><input id="m-ival" placeholder="e.g., 198.51.100.15"></div>
+    <div class="input-group"><label>Associated Threat Actor</label><input id="m-iactor" placeholder="e.g., Lazarus Group"></div>
+    <div class="input-group"><label>Confidence (%)</label><input id="m-iconf" type="number" min="0" max="100" value="80"></div>
+    <div class="input-group"><label>Tags (comma separated)</label><input id="m-itags" placeholder="C2, Phishing"></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick="addIOC()"><i class="ti ti-plus"></i> Add IOC</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function addIOC() {
+  const val = document.getElementById('m-ival')?.value.trim();
+  if (!val) { notify('Enter an IOC value.'); return; }
+  iocsList.unshift({
+    type: document.getElementById('m-itype').value,
+    value: val,
+    actor: document.getElementById('m-iactor').value || 'Unknown',
+    conf: parseInt(document.getElementById('m-iconf').value) || 80,
+    tags: document.getElementById('m-itags').value.split(',').map(t=>t.trim()).filter(Boolean),
+    date: getRelativeDateStr(0)
+  });
+  renderIOCs();
+  closeModal();
+  notify('IOC added successfully.');
+}
+
+function openAddCVE() {
+  showModal(`
+    <div class="modal-title">Add CVE <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="input-group"><label>CVE ID</label><input id="m-cid" placeholder="CVE-2026-XXXXX"></div>
+    <div class="input-group"><label>CVSS Score</label><input id="m-ccvss" type="number" min="0" max="10" step="0.1" value="7.5"></div>
+    <div class="input-group"><label>Product</label><input id="m-cprod" placeholder="e.g., OpenSSL 3.x"></div>
+    <div class="input-group"><label>Description</label><textarea id="m-cdesc" placeholder="Vulnerability description…"></textarea></div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick="addCVE()"><i class="ti ti-plus"></i> Add CVE</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function addCVE() {
+  const id = document.getElementById('m-cid')?.value.trim();
+  if (!id) { notify('Enter a CVE ID.'); return; }
+  const cvss = parseFloat(document.getElementById('m-ccvss').value) || 7.5;
+  CVES_DATA.unshift({id, cvss, sev: cvss>=9?'critical':cvss>=7?'high':'medium', product: document.getElementById('m-cprod').value || 'Unknown', desc: document.getElementById('m-cdesc').value || 'No description.', published: getRelativeDateStr(0), exploited: false});
+  renderCVEs();
+  closeModal();
+  notify('CVE added.');
+}
+
+function openAddUser() {
+  showModal(`
+    <div class="modal-title">Add User <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="input-group"><label>Full Name</label><input id="m-uname" placeholder="Jane Smith"></div>
+    <div class="input-group"><label>Email</label><input id="m-uemail" placeholder="jane@org.io"></div>
+    <div class="input-group"><label>Role</label>
+      <select id="m-urole"><option>Admin</option><option>Analyst</option><option>Viewer</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick="createUser()"><i class="ti ti-user-plus"></i> Create User</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function createUser() {
+  const name = document.getElementById('m-uname')?.value.trim();
+  const email = document.getElementById('m-uemail')?.value.trim();
+  if (!name || !email) { notify('Fill in name and email.'); return; }
+  USERS_DATA.push({name, email, role: document.getElementById('m-urole').value, status:'active', last:'Never'});
+  renderUsers();
+  closeModal();
+  notify(`User ${name} created.`);
+}
+
+function editUser(i) {
+  const u = USERS_DATA[i];
+  showModal(`
+    <div class="modal-title">Edit User <button class="modal-close" onclick="closeModal()">×</button></div>
+    <div class="input-group"><label>Full Name</label><input id="m-uname2" value="${escHtml(u.name)}"></div>
+    <div class="input-group"><label>Role</label>
+      <select id="m-urole2">
+        ${['Admin','Analyst','Viewer'].map(r=>`<option${r===u.role?' selected':''}>${r}</option>`).join('')}
+      </select>
+    </div>
+    <div class="input-group"><label>Status</label>
+      <select id="m-ustatus"><option${u.status==='active'?' selected':''}>active</option><option${u.status==='disabled'?' selected':''}>disabled</option></select>
+    </div>
+    <div style="display:flex;gap:8px;margin-top:14px">
+      <button class="btn btn-success" style="flex:1;justify-content:center" onclick="saveUser(${i})"><i class="ti ti-check"></i> Save</button>
+      <button class="btn" onclick="closeModal()">Cancel</button>
+    </div>`);
+}
+
+function saveUser(i) {
+  USERS_DATA[i].name = document.getElementById('m-uname2').value;
+  USERS_DATA[i].role = document.getElementById('m-urole2').value;
+  USERS_DATA[i].status = document.getElementById('m-ustatus').value;
+  renderUsers();
+  closeModal();
+  notify('User updated.');
+}
+
+function deleteUser(i) {
+  if (USERS_DATA[i].email === currentUser) { notify('Cannot delete your own account.'); return; }
+  USERS_DATA.splice(i, 1);
+  renderUsers();
+  notify('User removed.');
+}
+
+function showCampaigns(name) {
+  const a = ACTORS_DATA.find(x => x.name === name);
+  if (!a) return;
+  showModal(`
+    <div class="modal-title">${a.name} — Campaigns <button class="modal-close" onclick="closeModal()">×</button></div>
+    ${a.campaigns.map(c=>`<div class="dw-item" style="margin-bottom:8px"><i class="ti ti-flag" style="color:var(--accent-red);margin-right:8px"></i><span style="color:var(--text-primary)">${c}</span></div>`).join('')}
+    <button class="btn btn-ai" style="width:100%;justify-content:center;margin-top:12px" onclick="closeModal();aiActorProfileFor('${escHtml(a.name)}')"><i class="ti ti-brain"></i> Generate AI Profile</button>`);
+}
+
+// ══════════════════════════════════════════════════════════
+// EXPORTERS & DOWNLOADERS
+// ══════════════════════════════════════════════════════════
+function downloadFile(filename, text) {
+  const element = document.createElement('a');
+  element.setAttribute('href', 'data:text/plain;charset=utf-8,' + encodeURIComponent(text));
+  element.setAttribute('download', filename);
+  element.style.display = 'none';
+  document.body.appendChild(element);
+  element.click();
+  document.body.removeChild(element);
+}
+
+function exportEvent(obj) {
+  const filename = `${obj.id || obj.name || obj.victim || obj.title || 'threat_intel_event'}.json`;
+  const formatted = JSON.stringify(obj, null, 2);
+  downloadFile(filename, formatted);
+  notify(`Exported event record as ${filename}`);
+}
+
+function exportReport(fmt) {
+  const title = document.getElementById('rpt-title').value;
+  const tlp = document.getElementById('rpt-tlp').value;
+  
+  const activeCount = document.querySelector('.stats-row .stat-card:nth-child(1) .stat-value')?.textContent || '47';
+  const iocCount = document.querySelector('.stats-row .stat-card:nth-child(2) .stat-value')?.textContent || '18,492';
+  
+  const actorsStr = ACTORS_DATA.map(a => `- ${a.name} (Origin: ${a.origin}, Severity: ${a.severity})`).join('\\n');
+  const cvesStr = CVES_DATA.map(c => `- ${c.id} (CVSS: ${c.cvss}): ${c.desc}`).join('\\n');
+  const dwStr = DW_RANSOM.map(r => `- Victim: ${r.victim}, Group: ${r.group}, Size: ${r.size}, Status: ${r.status}`).join('\\n');
+  const swiftStr = FINTECH_SWIFT.map(s => `- Incident: ${s.incident}, Target: ${s.target}, Amount: ${s.amount}, Status: ${s.status}`).join('\\n');
+
+  let reportText = `======================================================
+${title.toUpperCase()}
+CLASSIFICATION: ${tlp}
+REPORT FORMAT: ${fmt}
+GENERATED: ${new Date().toLocaleString()}
+======================================================
+
+1. SUMMARY OF THREAT LANDSCAPE
+Current active threat campaigns: ${activeCount}
+Tracked IOC indicators: ${iocCount}
+
+2. MONITORED THREAT ACTORS
+${actorsStr}
+
+3. CRITICAL VULNERABILITIES (CVE)
+${cvesStr}
+
+4. DARK WEB DISCOVERIES
+${dwStr}
+
+5. FINTECH & SWIFT INCIDENTS
+${swiftStr}
+
+6. TACTICAL RECOMMENDATIONS
+- Ensure strict multi-factor authentication rules on all core financial modules.
+- Block all known indicators in active edge appliances.
+- Monitor USSD nodes for transaction anomalies.
+- Deploy security updates for public-facing assets immediately.
+
+======================================================
+Generated by SENTINEL Threat Intelligence Portal v2.1
+======================================================`;
+
+  if (fmt === 'PDF') {
+    const printWin = window.open('', '_blank');
+    printWin.document.write(`
+      <html>
+      <head>
+        <title>${title} - ${tlp}</title>
+        <style>
+          body { font-family: monospace; background: #fff; color: #000; padding: 40px; white-space: pre-wrap; font-size: 13px; line-height: 1.5; }
+          .header { border-bottom: 2px solid #000; padding-bottom: 20px; margin-bottom: 20px; }
+          .tlp { font-weight: bold; color: ${tlp.includes('RED')?'red':tlp.includes('AMBER')?'orange':'green'}; }
+        </style>
+      </head>
+      <body>
+        <div class="header">
+          <h1>SENTINEL THREAT REPORT</h1>
+          <h2>${title}</h2>
+          <div>CLASSIFICATION: <span class="tlp">${tlp}</span></div>
+          <div>DATE: ${new Date().toLocaleString()}</div>
+        </div>
+        <div>${reportText.replace(/</g, '&lt;').replace(/>/g, '&gt;')}</div>
+        <script>window.print();<\/script>
+      </body>
+      </html>
+    `);
+    printWin.document.close();
+    notify('Created print-optimized window. Press Ctrl+P (or print menu) to save as PDF.');
+  } else if (fmt === 'Word') {
+    const filename = `${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}.doc`;
+    downloadFile(filename, reportText);
+    notify(`Downloaded editable report as ${filename}`);
+  } else if (fmt === 'PowerPoint') {
+    const slideText = `SLIDE 1: TITLE SLIDE
+Title: ${title}
+Classification: ${tlp}
+Date: ${new Date().toLocaleDateString()}
+
+SLIDE 2: EXEC SUMMARY
+Active threats: ${activeCount}
+Monitored indicators: ${iocCount}
+Primary Concern: Localized banking trojans and phishing campaigns targeting mobile operators.
+
+SLIDE 3: CRITICAL CVE HIGHLIGHTS
+${cvesStr.slice(0, 300)}...
+
+SLIDE 4: DARK WEB TELEMETRY
+${dwStr.slice(0, 300)}...
+
+SLIDE 5: RECOMMENDATIONS
+- Restrict public-facing API gateways.
+- Review USSD gateway configurations.
+- Push immediate patches.`;
+    
+    const filename = `${title.toLowerCase().replace(/[^a-z0-9]/g, '_')}_presentation.txt`;
+    downloadFile(filename, slideText);
+    notify(`Downloaded presentation brief outline as ${filename}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// AI DYNAMIC INTEGRATIONS (Claude API & Fallback Simulator)
+// ══════════════════════════════════════════════════════════
+function getKey() {
+  return document.getElementById('api-key-input')?.value?.trim() || savedApiKey;
+}
+
+// High-quality local simulator to generate reports without an API key
+function getSimulatedOutput(type, prompt) {
+  const activeCount = document.querySelector('.stats-row .stat-card:nth-child(1) .stat-value')?.textContent || '47';
+  const iocCount = document.querySelector('.stats-row .stat-card:nth-child(2) .stat-value')?.textContent || '18,492';
+  const dwCount = document.querySelector('.stats-row .stat-card:nth-child(3) .stat-value')?.textContent || '23';
+  const cveCount = document.querySelector('.stats-row .stat-card:nth-child(4) .stat-value')?.textContent || '8';
+  
+  const latestFeeds = FEED_ITEMS.slice(0, 3).map(f => `- **${f.title}** (${f.src} · Ingested: ${f.time} · Published: ${f.publishedDate})`).join('\\n');
+  const latestCVEs = CVES_DATA.slice(0, 2).map(c => `- **${c.id}** (CVSS ${c.cvss}) affecting ${c.product}: ${c.desc}`).join('\\n');
+  const latestRansom = DW_RANSOM.slice(0, 2).map(r => `- **${r.victim}** (Sector: ${r.sector}) listed by ${r.group} (${r.size} exfiltrated, Status: ${r.status})`).join('\\n');
+  const latestIocs = iocsList.slice(0, 4).map(i => `- ${i.type}: ${i.value} (Actor: ${i.actor}, Tags: ${i.tags.join(',')})`).join('\\n');
+
+  if (type === 'briefing') {
+    return `[SIMULATED AI COGNITIVE BRIEFING - OFFLINE ANALYST MODE]
+Generated: ${new Date().toLocaleString()} · Target: C-Suite / board
+
+EXECUTIVE THREAT SUMMARY
+The threat telemetry dashboard indicates an active threat level of ${activeCount} active campaigns, with ${iocCount} tracked indicators of compromise. The primary exposure vector this week revolves around localized banking trojans (specifically Grandoreiro v4 and AfriBot) targeting financial systems and USSD gateways in East and West Africa, alongside initial access broker auctions.
+
+CRITICAL IMPACTS & TELEMETRY OBSERVATIONS
+1. Feeds collected from regional CIRTs and AlienVault OTX highlight the following critical updates:
+${latestFeeds}
+2. Vulnerability Management has identified a cluster of exploits surrounding:
+${latestCVEs}
+3. Dark Web monitoring alerts indicate active corporate exposures, including:
+${latestRansom}
+
+STRATEGIC RECOMMENDATIONS
+1. **API Schema Integrity & Rate Limiting**: Implement strict payload checking on all public banking web service gateways to block Parquet and VPN code execution threats.
+2. **Perimeter VPN and Admin Isolation**: Move all administration portals behind multi-factor VPN tunnels, disabling public-facing console ports.
+3. **MFA Push & USSD Session Verification**: Coordinate with telco operators to review transfer patterns on mobile USSD connections and detect SIM-swap signals.
+
+OVERALL RISK RATING: CRITICAL
+Rationale: Active exploitation of RCE modules in network firewalls/gateways coupled with targeted fintech Trojans targeting regional systems.`;
+  }
+
+  if (type === 'cve-analysis') {
+    return `[SIMULATED AI CVE REMEDIATION BRIEF - OFFLINE ANALYST MODE]
+Target Audience: Security Operations Team
+
+VULNERABILITY ASSESSMENT SUMMARY
+We are tracking ${cveCount} critical vulnerability disclosures affecting the fintech perimeter:
+${latestCVEs}
+
+BUSINESS IMPACT
+Successful exploitation of Parquet (CVE-2026-30065) or VPN systems allows remote attackers to bypass database authentication and run system-level commands, leading to direct compromise of financial ledger records.
+
+REMEDIATION & DETECTIONS
+1. **CVE-2026-30065 (Apache Parquet RCE)**:
+   - Patch Priority: P1 (Patch within 24 hours)
+   - Compensating Control: Verify Java deserialization security rules and filter Parquet uploads.
+   - Detection: Sigma rule matching anomalous java.exe spawn processes.
+2. **CVE-2026-0282 (Ivanti VPN RCE)**:
+   - Patch Priority: P1 (Immediate)
+   - Compensating Control: Enable strict source-IP firewalls on external VPN portals.
+
+PATCHING MATRIX ORDER:
+1. CVE-2026-30065 -> 2. CVE-2026-0282 -> 3. CVE-2025-55591`;
+  }
+
+  if (type === 'darkweb') {
+    return `[SIMULATED AI DARK WEB ASSESSMENT - OFFLINE ANALYST MODE]
+Target Audience: Threat Intelligence Team
+
+RANSOMWARE & DATA LEAK DISCOVERIES
+${latestRansom}
+
+INITIAL ACCESS AUCTION TELEMETRY
+We are tracking initial access broker auctions targeting West and South African financial institutions, asking between $10,000 and $22,000 for domain administrator credentials.
+
+ANALYSIS & RECOMMENDATIONS
+1. **Credential Vault Audit**: Force password rotation on all administrator and service accounts immediately.
+2. **Lateral Movement Detections**: Enable alerts for anomalous SMB/RDP connections between internal network subnets.
+3. **Active Directory Audits**: Audit Domain Admin memberships and disable inactive service keys.`;
+  }
+
+  if (type === 'fintech') {
+    return `[SIMULATED AI FINTECH INTELLIGENCE BRIEF - OFFLINE ANALYST MODE]
+Target Audience: SOC / Payment Security Team
+
+MONITORED MALWARE THREATS:
+We are tracking active banking trojans targeting regional banking gateways (Grandoreiro v4, TrickBot Redux, AfriBot). These trojans inject fake overlays to intercept customer OTPs.
+
+SWIFT GATEWAY TELEMETRY:
+SWIFT MT103 and MT202 transaction fraud attempts have targeted commercial banking gateways in East and West Africa. Compromised operator credentials remain the top vector.
+
+RECOMMENDED DEFENSIVE CONTROLS:
+1. **SWIFT Alliance Lite2 Isolation**: Maintain dedicated, air-gapped workstations for SWIFT transaction signing.
+2. **USSD Transaction ceilings**: Enforce lower default USSD transfer limits and apply multi-step approval for large mobile money operations.
+3. **Overlay Shielding**: Upgrade corporate apps with overlay detection APIs to block VNC hijack attempts.`;
+  }
+
+  if (type === 'newsletter') {
+    return `[SIMULATED AI NEWSLETTER - OFFLINE ANALYST MODE]
+Title: Weekly Threat Intelligence Digest (Simulated)
+Target Audience: Security Team
+
+1. THIS WEEK IN THREATS
+We are tracking a surge in phishing campaigns spoofing commercial banking portals to distribute banking trojans. Vulnerabilities in VPN network assets remain actively exploited.
+
+2. ADVERSARY SPOTLIGHT
+Lazarus Group continues to deploy modified SWIFT payloads targeting regional banking systems to orchestrate fraudulent transfers.
+
+3. VULNERABILITY ROUNDUP
+- CVE-2026-30065 (CVSS 9.8): Critical Parquet RCE.
+- CVE-2026-0282 (CVSS 9.0): Ivanti VPN Stack Overflow.
+
+4. DARK WEB PULSE
+Ransomware group claims target financial and utility organizations. A customer database leak containing 4.2M records has been verified on carding channels.
+
+5. RECOMMENDATIONS
+- Restrict public administrative interfaces.
+- Perform daily sweeps on domain admin accounts.
+- Audit external API endpoints.`;
+  }
+
+  if (type === 'report') {
+    return `[SIMULATED AI REPORT - OFFLINE ANALYST MODE]
+Title: Threat Intelligence Report (Simulated)
+Classification: TLP:AMBER
+
+EXECUTIVE SUMMARY
+This report compiles threat telemetry gathered from regional financial circles and OTX threat channels. Over the past 7 days, there has been a marked rise in perimeter scans targeting VPN services and API endpoints.
+
+THREAT ACTOR PROFILES
+${actorsStrSim()}
+
+VULNERABILITY INVENTORY
+${cvesStrSim()}
+
+DARK WEB MONITORING
+${latestRansom}
+
+INDICATORS OF COMPROMISE (IOCS)
+${latestIocs}
+
+RECOMMENDATIONS & CONCLUSION
+Apply perimeter patches for known exploited vulnerabilities within 24 hours. Ensure logging is enabled for all SWIFT and USSD gateway interface systems.`;
+  }
+
+  // General fallback text
+  return `[SIMULATED AI CONTENT - KEYLESS DEMO MODE]
+The platform is running in Simulated Analyst Fallback Mode. 
+Context: ${prompt.slice(0, 300)}...
+
+This feature will dynamically parse live system arrays to generate analyst insights. To enable live Claude AI responses from api.anthropic.com, enter a valid API key in Settings.`;
+}
+
+function actorsStrSim() {
+  return ACTORS_DATA.slice(0, 2).map(a => `- **${a.name}** (Origin: ${a.origin}): AKA ${a.aka}, Motivations: ${a.motivation}`).join('\\n');
+}
+
+function cvesStrSim() {
+  return CVES_DATA.slice(0, 2).map(c => `- **${c.id}** (${c.product}): CVSS ${c.cvss}. Description: ${c.desc}`).join('\\n');
+}
+
+async function callClaude(prompt, outputEl, maxTokens = 1000) {
+  outputEl.classList.add('loading');
+  outputEl.textContent = '';
+  
+  // Check if we are running in simulation/fallback mode (no key)
+  const key = getKey();
+  if (!key) {
+    // Determine the type of simulation based on the output element ID
+    let type = 'general';
+    const id = outputEl.id;
+    if (id === 'dash-ai-out') type = 'briefing';
+    else if (id === 'cve-ai-out') type = 'cve-analysis';
+    else if (id === 'dw-ai-out') type = 'darkweb';
+    else if (id === 'fintech-ai-out') type = 'fintech';
+    else if (id === 'nl-out') type = 'newsletter';
+    else if (id === 'rpt-ai-out') type = 'report';
+    else if (id === 'feed-ai-out') type = 'briefing';
+    else if (id === 'ai-hub-out') {
+      const selectType = document.getElementById('ai-type')?.value;
+      if (selectType === 'exec') type = 'briefing';
+      else if (selectType === 'newsletter') type = 'newsletter';
+      else if (selectType === 'fintech') type = 'fintech';
+      else if (selectType === 'advisory') type = 'cve-analysis';
+      else if (selectType === 'profile') type = 'report';
+      else if (selectType === 'ioc-report') type = 'report';
+      else if (selectType === 'hunting') type = 'report';
+    }
+    
+    // Simulate thinking delay (700ms) for better UX
+    setTimeout(() => {
+      outputEl.classList.remove('loading');
+      outputEl.textContent = getSimulatedOutput(type, prompt);
+    }, 700);
+    return;
+  }
+  
+  // Real Claude API call
+  try {
+    const res = await fetch('https://api.anthropic.com/v1/messages', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'x-api-key': key,
+        'anthropic-version': '2023-06-01',
+        'dangerously-allow-browser': 'true'
+      },
+      body: JSON.stringify({
+        model: 'claude-3-5-sonnet-latest',
+        max_tokens: maxTokens,
+        messages: [{role:'user', content: prompt}]
+      })
+    });
+    const data = await res.json();
+    outputEl.classList.remove('loading');
+    if (data.content?.[0]?.text) {
+      outputEl.textContent = data.content[0].text;
+    } else if (data.error) {
+      outputEl.textContent = `API Error: ${data.error.message}`;
+    } else {
+      outputEl.textContent = 'Unexpected response from Claude API.';
+    }
+  } catch (err) {
+    outputEl.classList.remove('loading');
+    outputEl.textContent = `Network error: ${err.message}
+
+Check your API key and internet connection.`;
+  }
+}
+
+async function generateDashBriefing() {
+  const activeCount = document.querySelector('.stats-row .stat-card:nth-child(1) .stat-value')?.textContent || '47';
+  const iocCount = document.querySelector('.stats-row .stat-card:nth-child(2) .stat-value')?.textContent || '18,492';
+  const dwCount = document.querySelector('.stats-row .stat-card:nth-child(3) .stat-value')?.textContent || '23';
+  const cveCount = document.querySelector('.stats-row .stat-card:nth-child(4) .stat-value')?.textContent || '8';
+  
+  const feedsStr = FEED_ITEMS.slice(0, 5).map(f => `- [${f.sev.toUpperCase()}] ${f.title} (${f.src} · Ingested: ${f.time} · Published: ${f.publishedDate})`).join('\\n');
+  const cvesStr = CVES_DATA.slice(0, 3).map(c => `- ${c.id} (CVSS ${c.cvss}, Product: ${c.product}): ${c.desc}`).join('\\n');
+  const dwStr = DW_RANSOM.slice(0, 3).map(r => `- Victim: ${r.victim}, Group: ${r.group}, Size: ${r.size}, Status: ${r.status}`).join('\\n');
+
+  const prompt = `You are a senior threat intelligence analyst. Write a concise 3-paragraph executive threat briefing for a CISO based on this CURRENT LIVE telemetry collected from the dashboard:
+
+CURRENT DASHBOARD METRICS:
+- Active Threats Tracker: ${activeCount}
+- Indicators of Compromise (IOCs) Indexed: ${iocCount}
+- Dark Web Alert Hits: ${dwCount}
+- Active Critical CVEs: ${cveCount}
+
+LATEST TELEMETRY FEED (Most Recent 5):
+${feedsStr}
+
+VULNERABILITIES OF HIGHEST CONCERN:
+${cvesStr}
+
+DARK WEB EXPOSURES:
+${dwStr}
+
+Format:
+- Paragraph 1: Overview of the immediate threat landscape.
+- Paragraph 2: Assessment of the most critical risks with direct business impact.
+- Paragraph 3: Top 3 strategic recommendations.
+End with an overall threat rating (CRITICAL/HIGH/MEDIUM/LOW) and a single-sentence reasoning.`;
+
+  await callClaude(prompt, document.getElementById('dash-ai-out'), 900);
+}
+
+async function aiFeedSummary(name) {
+  const filtered = FEED_ITEMS.filter(f => f.src.toLowerCase().includes(name.toLowerCase()) || f.cat.toLowerCase().includes(name.toLowerCase()));
+  const itemsStr = filtered.length > 0 
+    ? filtered.slice(0, 6).map(f => `- [${f.sev.toUpperCase()}] ${f.title} (Published: ${f.publishedDate})`).join('\\n')
+    : `No specific recent items registered in the database for feed source "${name}", but connection status remains live.`;
+
+  const prompt = `You are a threat intelligence analyst. Write a concise 2-paragraph intelligence summary of the latest items from the "${name}" feed using this live telemetry:
+
+${itemsStr}
+
+Identify key security patterns, vulnerabilities, or campaign highlights. Format output with headers:
+- KEY THREATS
+- NOTABLE CVEs & ASSETS
+- ANALYST RECOMMENDATIONS`;
+
+  await callClaude(prompt, document.getElementById('feed-ai-out'), 750);
+}
+
+async function aiSummarizeFeeds() {
+  const feedsStr = FEED_ITEMS.slice(0, 10).map(f => `- [${f.sev.toUpperCase()}] ${f.title} (Source: ${f.src}, Category: ${f.cat}, Published: ${f.publishedDate})`).join('\\n');
+  const prompt = `Write a comprehensive threat intelligence digest summarizing these live active feeds currently collected:
+
+${feedsStr}
+
+Highlight the top 5 critical items, trending adversarial TTPs, and newly observed patterns in the last 24 hours. Format clearly with structured sections.`;
+
+  await callClaude(prompt, document.getElementById('feed-ai-out'), 900);
+}
+
+async function runAiHub() {
+  const type = document.getElementById('ai-type').value;
+  const context = document.getElementById('ai-context').value.trim();
+  const audience = document.getElementById('ai-audience').value;
+  const out = document.getElementById('ai-hub-out');
+  
+  const recentIocs = iocsList.slice(0, 8).map(i => `- ${i.type}: ${i.value} (Actor: ${i.actor}, Conf: ${i.conf}%, Tags: ${i.tags.join(',')})`).join('\\n');
+  const recentCves = CVES_DATA.slice(0, 3).map(c => `- ${c.id} CVSS ${c.cvss} (${c.product}): ${c.desc}`).join('\\n');
+  const activeActors = ACTORS_DATA.slice(0, 3).map(a => `- ${a.name} (Origin: ${a.origin}, Campaigns: ${a.campaigns.join(',')})`).join('\\n');
+
+  const prompts = {
+    exec: `Generate a detailed executive threat intelligence summary for a ${audience} audience.
+Context/Subject: ${context}
+
+CURRENT SYSTEM telemetry base for reference:
+${recentCves}
+
+Include: threat landscape overview, corporate business impact, key indicators, and 3 strategic executive recommendations. Use clear headers.`,
+    
+    newsletter: `Generate a professional cybersecurity threat newsletter issue for ${audience}.
+Context/Subject: ${context}
+
+QUEUED NEWSLETTER TOPICS:
+${nlQueue.join('; ') || 'General threat landscape updates'}
+
+Additional threat context:
+${recentCves}
+
+Sections to generate:
+1. HEADLINE THREATS — Detailed analysis of subject/queued items
+2. VULNERABILITY ROUNDUP — Actionable overview of recent CVEs
+3. ADVERSARY SPOTLIGHT — Recent threat actor campaigns
+4. DARK WEB PULSE — Exfiltrated credentials/data alerts
+5. RECOMMENDATIONS — Prioritised remediation steps`,
+
+    profile: `Generate a comprehensive threat actor intelligence profile for ${audience}.
+Subject/Actor: ${context}
+
+Reference Actors Base:
+${activeActors}
+
+Include: attribution assessment, operational motivations, techniques (TTPs) mapped to MITRE ATT&CK, malware arsenal, recent campaign histories, indicators of compromise classes, and specific SIEM/SOC detection & hunting strategies.`,
+
+    advisory: `Generate a formal security advisory for ${audience}.
+Subject: ${context}
+
+Vulnerability Base:
+${recentCves}
+
+Include: EXECUTIVE SUMMARY, SEVERITY RATING, AFFECTED PRODUCTS, TECHNICAL DETAILS, EXPLOITABILITY ASSESSMENT, COMPENSATING CONTROLS, SIGMA/YARA DETECTION SIGNATURES, and STEP-BY-STEP REMEDIATION.`,
+
+    'ioc-report': `Generate an IOC analysis report for ${audience}.
+Subject/Context: ${context}
+
+INDICATORS BASE:
+${recentIocs}
+
+Include: IOC structured summary table, confidence metrics, threat actor attribution assessment, network blocking policies, SIEM KQL hunting queries, and security analyst observations.`,
+
+    fintech: `Generate a fintech-sector threat intelligence briefing for ${audience}.
+Subject/Focus: ${context}
+
+Include: banking trojan methodologies, SWIFT gateway risks, decentralized finance (DeFi) or crypto theft patterns, regulatory compliance impact (e.g., CBN, FSB, FATF), and sector-specific security controls.`,
+
+    hunting: `Generate threat hunting queries and detection guidelines for ${audience}.
+Subject: ${context}
+
+Include: hunting hypothesis, step-by-step telemetry queries (Sigma rules, KQL for Microsoft Sentinel, Splunk SPL), and YARA file/process detection signatures. Include false positive mitigation guidelines.`
+  };
+  
+  await callClaude(prompts[type] || prompts.exec, out, 1000);
+  document.getElementById('ai-copy-btn').style.display = 'inline-flex';
+  document.getElementById('ai-queue-btn').style.display = 'inline-flex';
+  aiHistCount++;
+  document.getElementById('ai-hist-count').textContent = aiHistCount + ' items';
+  const hist = document.getElementById('ai-hist-list');
+  if (hist.querySelector('div[style*="text-align:center"]')) hist.innerHTML = '';
+  const el = document.createElement('div');
+  el.style.cssText = 'padding:9px;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px';
+  el.innerHTML = `<span class="badge badge-purple">${type.toUpperCase()}</span><span style="font-size:12px;color:var(--text-secondary);flex:1">${context.slice(0,55)}…</span><span style="font-size:10px;color:var(--text-muted);font-family:var(--font-mono)">${new Date().toLocaleTimeString()}</span>`;
+  hist.prepend(el);
+}
+
+function copyAiOut() {
+  navigator.clipboard.writeText(document.getElementById('ai-hub-out').textContent).then(() => notify('Copied to clipboard.')).catch(() => notify('Copy failed — select and copy manually.'));
+}
+
+function queueAiOut() {
+  const txt = document.getElementById('ai-hub-out').textContent.slice(0, 80) + '…';
+  addToNLQueue(txt);
+}
+
+function copyEl(id) {
+  navigator.clipboard.writeText(document.getElementById(id).textContent).then(() => notify('Copied.')).catch(() => notify('Copy failed.'));
+}
+
+async function aiActorProfileFor(name) {
+  showPage('ai-hub', document.querySelector('[onclick*="ai-hub"]'));
+  document.getElementById('ai-type').value = 'profile';
+  document.getElementById('ai-context').value = name;
+  await runAiHub();
+}
+
+async function aiActorProfile() {
+  const q = document.getElementById('actor-search')?.value || 'Lazarus Group';
+  await aiActorProfileFor(q);
+}
+
+async function aiCVEAnalysis() {
+  const cvesStr = CVES_DATA.map(c => `- ${c.id} affecting ${c.product} (CVSS: ${c.cvss}, Severity: ${c.sev}). Exploited in the wild: ${c.exploited}. Description: ${c.desc}`).join('\\n');
+  const prompt = `Analyse these active critical CVEs currently in our tracking database and provide prioritised remediation guidance:
+
+${cvesStr}
+
+For each CVE, include: business impact assessment, exploitation likelihood, patch priority (P1-P4), compensating controls, and detection signatures. End with a prioritized patching order.`;
+
+  await callClaude(prompt, document.getElementById('cve-ai-out'), 900);
+}
+
+async function aiSingleCVE(id) {
+  const cve = CVES_DATA.find(c => c.id === id);
+  if (!cve) return;
+  const prompt = `Provide a detailed technical analysis of ${cve.id} (CVSS ${cve.cvss}) affecting ${cve.product}. 
+
+DESCRIPTION:
+${cve.desc}
+
+Include: root cause analysis, exploitation techniques, proof-of-concept status, affected versions, indicators of compromise (IOCs), Sigma detection rule, YARA rule snippet, and step-by-step remediation guide.`;
+
+  await callClaude(prompt, document.getElementById('cve-ai-out'), 900);
+  showPage('cve', document.querySelector('[onclick*="cve"]'));
+}
+
+async function aiDarkWeb() {
+  const ransomStr = DW_RANSOM.slice(0, 4).map(r => `- Victim: ${r.victim}, Sector: ${r.sector}, Group: ${r.group}, Country: ${r.country}, Size: ${r.size}, Status: ${r.status}`).join('\\n');
+  const leaksStr = DW_LEAKS.slice(0, 4).map(l => `- Title: ${l.title}, Records: ${l.records}, Source: ${l.src}, Verified: ${l.verified}, Date: ${l.date}`).join('\\n');
+  const iabsStr = DW_IAB.slice(0, 4).map(i => `- Target: ${i.target}, Access: ${i.access}, Price: ${i.price}, Broker: ${i.broker}, Date: ${i.date}`).join('\\n');
+
+  const prompt = `Analyse this dark web intelligence and write a formal threat assessment:
+
+LATEST RANSOMWARE VICTIMS:
+${ransomStr}
+
+LATEST DATA LEAKS DUMPS:
+${leaksStr}
+
+INITIAL ACCESS BROKER LISTINGS:
+${iabsStr}
+
+Focus on: regional threat landscape, financial sector exposure, ransomware group trajectories, and recommended defensive actions for compromised entities.`;
+
+  await callClaude(prompt, document.getElementById('dw-ai-out'), 900);
+}
+
+async function aiFintechBrief() {
+  const bankingStr = FINTECH_BANKING.map(b => `- Malware: ${b.name} (${b.type}), Targets: ${b.targets.join(', ')}, Tech: ${b.tech}, Severity: ${b.sev}`).join('\\n');
+  const phishingStr = FINTECH_PHISHING.map(p => `- Kit: ${p.kit}, Brands: ${p.brands.join(', ')}, Evasion: ${p.evasion}, Price: ${p.price}`).join('\\n');
+  const swiftStr = FINTECH_SWIFT.map(s => `- SWIFT Incident: ${s.incident}, Target: ${s.target}, Amount: ${s.amount}, Tech: ${s.tech}, Status: ${s.status}`).join('\\n');
+  const cryptoStr = FINTECH_CRYPTO.map(c => `- Crypto Campaign: ${c.campaign}, Method: ${c.method}, Stolen: ${c.stolen}, Group: ${c.group}`).join('\\n');
+
+  const prompt = `Generate a comprehensive fintech threat intelligence briefing for a CISO based on the current financial-sector tracking data:
+
+BANKING MALWARE ACTIVE:
+${bankingStr}
+
+PHISHING KITS MONITORED:
+${phishingStr}
+
+SWIFT THREAT INCIDENTS:
+${swiftStr}
+
+CRYPTO THEFT & EXPLOITS:
+${cryptoStr}
+
+Include: sector-specific risk rating, regulatory compliance implications, top 10 defensive controls, and threat hunting priorities.`;
+
+  await callClaude(prompt, document.getElementById('fintech-ai-out'), 1000);
+}
+
+async function aiNewsletter() {
+  const title = document.getElementById('nl-title').value;
+  const audience = document.getElementById('nl-audience').value;
+  const queued = nlQueue.length ? nlQueue.slice(0,5).join('; ') : 'general threat intelligence update';
+  
+  const cvesStr = CVES_DATA.slice(0, 2).map(c => `${c.id} (${c.product})`).join(', ');
+  const actorsStr = ACTORS_DATA.slice(0, 2).map(a => a.name).join(', ');
+
+  const prompt = `Generate a professional threat intelligence newsletter titled "${title}" for a ${audience} audience.
+
+QUEUED ITEMS TO INCLUDE:
+${queued}
+
+ADDITIONAL THREAT LANDSCAPE HIGHLIGHTS:
+- Recent Vulnerabilities: ${cvesStr}
+- Top Actors Observed: ${actorsStr}
+
+Sections:
+1. THIS WEEK IN THREATS — top 3 critical items with brief analysis
+2. ADVERSARY SPOTLIGHT — threat actors active this week (2 paragraphs)
+3. VULNERABILITY ROUNDUP — CVES roundup (table format)
+4. DARK WEB PULSE — ransomware victims and data leaks summary
+5. FINTECH ALERT — banking malware and fraud activity
+6. RECOMMENDATIONS — top 5 immediate actions with priority ratings
+
+Tone: ${audience === 'C-Suite / Board' ? 'executive, non-technical, business-impact focused' : 'technical, detailed, analyst-oriented'}. Format cleanly with section headers and concise bullet points.`;
+
+  await callClaude(prompt, document.getElementById('nl-out'), 1000);
+}
+
+async function aiGenerateReport() {
+  const title = document.getElementById('rpt-title').value;
+  const tlp = document.getElementById('rpt-tlp').value;
+
+  const actorsStr = ACTORS_DATA.slice(0, 3).map(a => `- ${a.name} (Origin: ${a.origin}): AKA ${a.aka}, Motivations: ${a.motivation}, Arsenal: ${a.malware.join(', ')}`).join('\\n');
+  const cvesStr = CVES_DATA.slice(0, 3).map(c => `- ${c.id} (${c.product}): CVSS ${c.cvss}. Description: ${c.desc}`).join('\\n');
+  const dwStr = DW_RANSOM.slice(0, 3).map(r => `- ${r.victim} (${r.sector}): targeted by ${r.group}, size ${r.size}, status ${r.status}`).join('\\n');
+  const iocsStr = iocsList.slice(0, 5).map(i => `- ${i.type}: ${i.value} (Actor: ${i.actor}, Confidence: ${i.conf}%)`).join('\\n');
+
+  const prompt = `Generate professional threat intelligence report content. Title: "${title}". Classification: ${tlp}.
+
+CURRENT TELEMETRY telemetry base:
+
+TOP ACTIVE THREAT ACTORS:
+${actorsStr}
+
+CRITICAL VULNERABILITIES IN SYSTEM:
+${cvesStr}
+
+DARK WEB INCIDENTS:
+${dwStr}
+
+INDICATORS OF COMPROMISE (IOCS):
+${iocsStr}
+
+Structure:
+1. EXECUTIVE SUMMARY (2 paragraphs, business-focused)
+2. THREAT LANDSCAPE OVERVIEW (current threat environment)
+3. TOP THREAT ACTORS (brief summary of Lazarus Group, FIN7, APT29)
+4. CRITICAL VULNERABILITIES (CVE-2025-30065, Ivanti, Fortinet and other recent ones)
+5. DARK WEB INTELLIGENCE (ransomware victims, data leaks summary)
+6. FINTECH THREAT SECTION (banking malware, SWIFT, crypto)
+7. INDICATORS OF COMPROMISE (sample table in text format of the IOCs listed above)
+8. STRATEGIC RECOMMENDATIONS (numbered, prioritised)
+9. CONCLUSION
+
+Style: formal intelligence report language. TLP marking: ${tlp} on every section.`;
+
+  await callClaude(prompt, document.getElementById('rpt-ai-out'), 1000);
+}
+
+// ══════════════════════════════════════════════════════════
+// DATA COLLECTION SIMULATOR
+// ══════════════════════════════════════════════════════════
+const INGESTION_POOL = {
+  feed: [
+    { title: 'New Mule Account Cluster Linked to Instant Payment Fraud Across Tier-1 Banks', sev: 'high', cat: 'Fraud', src: 'NIBSS / Payments Fraud Signals', publishedOffset: 1 },
+    { title: 'Credential Phishing Kit Targets Treasury and Corporate Banking Users', sev: 'high', cat: 'Phishing', src: 'FS-ISAC Advisories', publishedOffset: 2 },
+    { title: 'CISA KEV Update: Exploited Edge Device Flaw Prioritized for Financial Institutions', sev: 'critical', cat: 'Vulnerability', src: 'CISA KEV - Financial Exposure Watch', publishedOffset: 1 },
+    { title: 'Ransomware Leak Site Lists Regional Insurance Broker With Claims Data Exposure', sev: 'high', cat: 'Ransomware', src: 'Ransomware.live - Financial Victims', publishedOffset: 1 },
+    { title: 'URLhaus Flags Malware Download Chain Spoofing Payment Gateway Support Portal', sev: 'high', cat: 'Malware', src: 'URLhaus - Payment Malware URLs', publishedOffset: 3 },
+    { title: 'OTX Pulse Links POS Malware Infrastructure to FIN7 Affiliate Activity', sev: 'high', cat: 'ATM / POS', src: 'AlienVault OTX - Finance Pulses', publishedOffset: 4 },
+    { title: 'SWIFT Operator Workstations Targeted With MFA Fatigue and Session Hijacking', sev: 'critical', cat: 'SWIFT / Payments', src: 'SWIFT Customer Security Intelligence', publishedOffset: 2 },
+    { title: 'PCI Alert: E-commerce Skimmer Variant Bypasses Common Checkout Integrity Controls', sev: 'high', cat: 'Card Fraud', src: 'PCI Security Standards Council Alerts', publishedOffset: 3 }
+  ],
+  ioc: [
+    { type: 'IP', value: '198.51.100.12', actor: 'Lazarus Group', conf: 92, tags: ['C2', 'DPRK', 'SWIFT'] },
+    { type: 'Domain', value: 'secure-token-transfer.net', actor: 'FIN7', conf: 89, tags: ['C2', 'Phishing'] },
+    { type: 'SHA256', value: 'c87f394a1b0b2e3c4d5e6f7890abcdef1234567890abcdef1234567890abcdef', actor: 'Scattered Spider', conf: 96, tags: ['Credential Stealer', 'ViperSoftX'] },
+    { type: 'IP', value: '203.0.113.88', actor: 'Kimsuky', conf: 85, tags: ['Spearphish', 'NK'] },
+    { type: 'Domain', value: 'verify-uba-login.com', actor: 'Unknown', conf: 78, tags: ['Phish', 'Nigeria'] }
+  ],
+  cve: [
+    { id: 'CVE-2026-8891', cvss: 9.8, sev: 'critical', product: 'Fortinet FortiGate VPN', desc: 'Pre-authentication buffer overflow in VPN gateway allows unauthenticated remote code execution.', exploited: true },
+    { id: 'CVE-2026-1024', cvss: 8.5, sev: 'high', product: 'Microsoft Exchange Server', desc: 'Remote privilege escalation via serialized payload injection in SMTP module.', exploited: true },
+    { id: 'CVE-2026-3029', cvss: 7.8, sev: 'high', product: 'Alpine Linux OpenSSL', desc: 'Denial of service via memory exhaustion during high-volume TLS handshake negotiation.', exploited: false }
+  ],
+  darkweb: [
+    { type: 'ransom', victim: 'Kenya Electricity Generating Co.', sector: 'Energy', group: 'Black Basta', country: 'Kenya', size: '1.8 TB', deadline_offset: 14, status: 'Active' },
+    { type: 'leak', title: 'East African Mobile Wallet Credentials Dump', records: '1.2M', src: 'KillSec', type_dw: 'PII + Financial', verified: true },
+    { type: 'iab', target: 'Commercial Bank of Ethiopia', access: 'Citrix NetScaler Access', price: '$18,000', broker: 'IntelBroker', sector: 'Finance' }
+  ],
+  fintech: [
+    { type: 'banking', name: 'AfriBot v1', type_m: 'Android Banking Trojan', targets: ['UBA', 'Zenith Bank', 'GTBank'], tech: 'Overlay injection + SMS hijacking', iocs: 12, sev: 'high' },
+    { type: 'phishing', kit: 'UBA Secure OTP Bypass v3', brands: ['UBA'], evasion: 'IP geofencing + OTP intercept', price: '$220/mo', targets: 5 },
+    { type: 'swift', incident: 'MT103 Transaction Tampering', target: 'Commercial Bank of Ghana', amount: '$5.4M transferred', tech: 'Local SWIFT server malware injection', status: 'Under Investigation' },
+    { type: 'crypto', campaign: 'Quidax Exchange Phishing Campaign', method: 'Fake support agent session hijack', stolen: '$2.1M', chain: 'BSC/TRON', group: 'Lazarus Group' }
+  ]
+};
+
+function simulateDataIngestion() {
+  const categories = ['feed', 'ioc', 'cve', 'darkweb', 'fintech'];
+  const cat = categories[Math.floor(Math.random() * categories.length)];
+  
+  if (cat === 'feed') {
+    const pool = INGESTION_POOL.feed;
+    const item = {...pool[Math.floor(Math.random() * pool.length)]};
+    item.time = 'Just now';
+    item.publishedDate = getRelativeDateStr(item.publishedOffset);
+    FEED_ITEMS.unshift(item);
+    
+    if (item.sev === 'critical' || item.sev === 'high') {
+      const activeVal = document.querySelector('.stats-row .stat-card:nth-child(1) .stat-value');
+      if (activeVal) activeVal.textContent = parseInt(activeVal.textContent) + 1;
+    }
+    
+    renderDashFeed();
+    notify(`New threat feed item collected: "${item.title}" (${item.src})`);
+  } else if (cat === 'ioc') {
+    const pool = INGESTION_POOL.ioc;
+    const item = {...pool[Math.floor(Math.random() * pool.length)]};
+    item.date = getRelativeDateStr(0);
+    iocsList.unshift(item);
+    
+    const iocVal = document.querySelector('.stats-row .stat-card:nth-child(2) .stat-value');
+    if (iocVal) {
+      const current = parseInt(iocVal.textContent.replace(/,/g, ''));
+      iocVal.textContent = (current + 1).toLocaleString();
+    }
+    
+    renderIOCs();
+    notify(`New IOC captured: ${item.value} (${item.actor})`);
+  } else if (cat === 'cve') {
+    const pool = INGESTION_POOL.cve;
+    const item = {...pool[Math.floor(Math.random() * pool.length)]};
+    item.published = getRelativeDateStr(0);
+    CVES_DATA.unshift(item);
+    
+    const cveVal = document.querySelector('.stats-row .stat-card:nth-child(4) .stat-value');
+    if (cveVal) cveVal.textContent = parseInt(cveVal.textContent) + 1;
+    
+    renderCVEs();
+    notify(`New CVE vulnerability ingested: ${item.id} (${item.product})`);
+  } else if (cat === 'darkweb') {
+    const pool = INGESTION_POOL.darkweb;
+    const item = {...pool[Math.floor(Math.random() * pool.length)]};
+    
+    if (item.type === 'ransom') {
+      const entry = {victim: item.victim, sector: item.sector, group: item.group, country: item.country, date: getRelativeDateStr(0), size: item.size, deadline: getRelativeDateStr(-item.deadline_offset), status: item.status};
+      DW_RANSOM.unshift(entry);
+    } else if (item.type === 'leak') {
+      const entry = {title: item.title, records: item.records, src: item.src, type: item.type_dw, date: getRelativeDateStr(0), verified: item.verified};
+      DW_LEAKS.unshift(entry);
+    } else if (item.type === 'iab') {
+      const entry = {target: item.target, access: item.access, price: item.price, broker: item.broker, sector: item.sector, date: getRelativeDateStr(0)};
+      DW_IAB.unshift(entry);
+    }
+    
+    const dwVal = document.querySelector('.stats-row .stat-card:nth-child(3) .stat-value');
+    if (dwVal) dwVal.textContent = parseInt(dwVal.textContent) + 1;
+    
+    renderDarkWeb();
+    notify(`Dark Web Incident Alert: New posting for "${item.victim || item.title || item.target}"`);
+  } else if (cat === 'fintech') {
+    const pool = INGESTION_POOL.fintech;
+    const item = {...pool[Math.floor(Math.random() * pool.length)]};
+    
+    if (item.type === 'banking') {
+      const entry = {name: item.name, type: item.type_m, targets: item.targets, tech: item.tech, date: getRelativeDateStr(0), iocs: item.iocs, sev: item.sev};
+      FINTECH_BANKING.unshift(entry);
+    } else if (item.type === 'phishing') {
+      const entry = {kit: item.kit, brands: item.brands, evasion: item.evasion, price: item.price, date: getRelativeDateStr(0), targets: item.targets};
+      FINTECH_PHISHING.unshift(entry);
+    } else if (item.type === 'swift') {
+      const entry = {incident: item.incident, target: item.target, amount: item.amount, tech: item.tech, date: getRelativeDateStr(0), status: item.status};
+      FINTECH_SWIFT.unshift(entry);
+    } else if (item.type === 'crypto') {
+      const entry = {campaign: item.campaign, method: item.method, stolen: item.stolen, chain: item.chain, group: item.group, date: getRelativeDateStr(0)};
+      FINTECH_CRYPTO.unshift(entry);
+    }
+    
+    renderFintech();
+    notify(`Fintech Security Alert: ${item.name || item.kit || item.incident || item.campaign}`);
+  }
+}
+
+// ══════════════════════════════════════════════════════════
+// HELPERS & TOASTS
+// ══════════════════════════════════════════════════════════
+function sevColor(s) { return s==='critical'?'red':s==='high'?'amber':s==='medium'?'cyan':'gray'; }
+function iocTypeBadge(t) { return t==='IP'?'red':t==='SHA256'?'amber':t==='Domain'?'cyan':t==='BTC Wallet'?'amber':t==='URL'?'purple':t==='Email'?'green':'gray'; }
+function escHtml(s) { return String(s).replace(/[&<>"']/g, m => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[m])); }
+
+let _notifTimer;
+function notify(msg) {
+  const el = document.getElementById('notif');
+  el.textContent = msg;
+  el.style.opacity = '1';
+  clearTimeout(_notifTimer);
+  _notifTimer = setTimeout(() => { el.style.opacity = '0'; }, 3800);
+}
+</script>
+</body>
+</html>

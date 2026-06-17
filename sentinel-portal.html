@@ -17,7 +17,7 @@
   --font-mono:'JetBrains Mono',monospace;--font-ui:'Space Grotesk',sans-serif;
 }
 *{box-sizing:border-box;margin:0;padding:0}
-html,body{height:100%;overflow:hidden}
+html,body{min-height:100%;height:auto;overflow-x:hidden;overflow-y:auto}
 body{font-family:var(--font-ui);background:var(--bg-base);color:var(--text-primary)}
 /* SCANLINE */
 body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointer-events:none;z-index:9999;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,229,255,0.008) 2px,rgba(0,229,255,0.008) 4px)}
@@ -41,7 +41,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
 .login-hint{font-size:11px;color:var(--text-muted);text-align:center;margin-top:14px}
 
 /* ── LAYOUT ── */
-#app{display:none;height:100vh;flex-direction:column}
+#app{display:none;min-height:100vh;height:auto;flex-direction:column;width:100%;max-width:100%;overflow:hidden}
 .ticker-wrap{background:rgba(255,59,59,0.07);border-bottom:1px solid rgba(255,59,59,0.18);padding:5px 0;overflow:hidden;flex-shrink:0}
 .ticker-inner{display:flex;gap:60px;animation:ticker 50s linear infinite;white-space:nowrap;font-family:var(--font-mono);font-size:10px;color:#ff6b6b;letter-spacing:.5px;padding:0 24px}
 @keyframes ticker{from{transform:translateX(0)}to{transform:translateX(-50%)}}
@@ -124,7 +124,11 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
 .feed-item.low::before{background:var(--text-muted)}
 .feed-title{font-size:12px;font-weight:500;color:var(--text-primary);margin-bottom:5px;line-height:1.4}
 .feed-meta{display:flex;align-items:center;gap:7px;flex-wrap:wrap}
-.feed-time{font-size:10px;color:var(--text-muted);font-family:var(--font-mono)}
+.feed-source-link{font-size:10px;color:var(--accent-cyan);font-family:var(--font-mono);text-decoration:none}
+.feed-source-link:hover{text-decoration:underline;color:#33ecff}
+.feed-filter-bar{display:flex;align-items:center;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.feed-filter-bar select,.feed-filter-bar input{background:var(--bg-elevated);border:1px solid var(--border);color:var(--text-secondary);padding:6px 10px;border-radius:6px;font-size:11px;outline:none}
+.feed-archive-note{font-size:10px;color:var(--text-muted);font-family:var(--font-mono)}
 
 /* ── AI PANEL ── */
 .ai-panel{background:rgba(179,136,255,0.04);border:1px solid rgba(179,136,255,0.18);border-radius:10px;padding:18px}
@@ -211,10 +215,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
   .nav-badge{position:absolute;top:4px;right:4px;font-size:8px;padding:1px 4px}
 }
 
-/* ── SETTINGS KEY REVEAL ── */
-.key-wrap{position:relative}
-.key-wrap input{padding-right:40px}
-.key-reveal{position:absolute;right:10px;top:50%;transform:translateY(-50%);background:none;border:none;color:var(--text-muted);cursor:pointer;font-size:16px}
+/* ── SETTINGS ── */
 </style>
 </head>
 <body>
@@ -304,12 +305,26 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
           <div class="stat-card"><div class="stat-label">Critical CVEs</div><div class="stat-value" style="color:var(--accent-red)">8</div><div class="stat-delta delta-down"><i class="ti ti-trending-down"></i>-2 patched</div></div>
         </div>
         <div class="ai-panel" id="dash-ai-panel" style="margin-bottom:18px">
-          <div class="ai-header"><span class="ai-badge">AI EXECUTIVE BRIEFING</span><span style="font-size:11px;color:var(--text-muted)">Powered by Claude</span></div>
-          <div class="ai-output" id="dash-ai-out">Click "AI Briefing" to generate a real-time executive threat summary. Requires Claude API key in Settings.</div>
+          <div class="ai-header"><span class="ai-badge">AI EXECUTIVE BRIEFING</span><span style="font-size:11px;color:var(--text-muted)">Automated analyst mode</span></div>
+          <div class="ai-output" id="dash-ai-out">Click "AI Briefing" to generate a real-time executive threat summary from live feed telemetry.</div>
         </div>
         <div class="grid-2" style="margin-bottom:16px">
           <div class="card">
-            <div class="card-header"><span class="card-title">Live Intelligence Feed</span><span class="badge badge-green"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span></div>
+            <div class="card-header">
+              <span class="card-title">Intelligence Feed &amp; Alarms</span>
+              <span class="badge badge-green"><span class="pulse-dot" style="width:5px;height:5px"></span>LIVE</span>
+            </div>
+            <div class="feed-filter-bar">
+              <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Date range</label>
+              <select id="feed-date-filter" onchange="renderDashFeed()">
+                <option value="1">Today</option>
+                <option value="7" selected>Last 7 days</option>
+                <option value="30">Last 30 days</option>
+                <option value="all">All archived</option>
+              </select>
+              <input id="feed-search" placeholder="Search alarms…" oninput="renderDashFeed()" style="flex:1;min-width:140px">
+              <span class="feed-archive-note" id="feed-filter-count"></span>
+            </div>
             <div id="dash-feed-list"></div>
           </div>
           <div class="card">
@@ -350,6 +365,22 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
           <div class="tab" onclick="switchTab('feed','cve',this)">CVE/NVD</div>
         </div>
         <div class="card" style="margin-bottom:16px;overflow-x:auto">
+          <div class="card-header"><span class="card-title">Alarm Archive</span><span id="feeds-alarm-count" style="font-size:11px;color:var(--text-muted)"></span></div>
+          <div class="feed-filter-bar" style="padding:0 0 12px">
+            <label style="font-size:10px;color:var(--text-muted);text-transform:uppercase;letter-spacing:1px">Date range</label>
+            <select id="feeds-date-filter" onchange="renderFeedsAlarms()">
+              <option value="7">Last 7 days</option>
+              <option value="30">Last 30 days</option>
+              <option value="all" selected>All archived</option>
+            </select>
+          </div>
+          <table class="data-table" style="min-width:700px">
+            <thead><tr><th>Alarm</th><th>Severity</th><th>Category</th><th>Source</th><th>Published</th><th>Link</th></tr></thead>
+            <tbody id="feeds-alarms-tbody"></tbody>
+          </table>
+        </div>
+        <div class="card" style="margin-bottom:16px;overflow-x:auto">
+          <div class="card-header"><span class="card-title">Feed Sources</span></div>
           <table class="data-table" id="feeds-table-el" style="min-width:600px">
             <thead><tr><th>Source Name</th><th>Type</th><th>Status</th><th>Last Fetch</th><th>Items</th><th>Actions</th></tr></thead>
             <tbody id="feeds-tbody"></tbody>
@@ -357,14 +388,14 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
         </div>
         <div class="ai-panel">
           <div class="ai-header"><span class="ai-badge">AI FEED DIGEST</span></div>
-          <div class="ai-output" id="feed-ai-out">Click "AI Digest All" to get a Claude-powered summary of all active intelligence feeds.</div>
+          <div class="ai-output" id="feed-ai-out">Click "AI Digest All" to get an automated summary of all active intelligence feeds.</div>
         </div>
       </div>
 
       <!-- ▸ AI HUB -->
       <div class="page" id="page-ai-hub">
         <div class="page-header">
-          <div><div class="page-title">AI Intelligence Hub</div><div class="page-sub">Powered by Claude · Summaries · Profiles · Advisories · Newsletters</div></div>
+          <div><div class="page-title">AI Intelligence Hub</div><div class="page-sub">Summaries · Profiles · Advisories · Newsletters</div></div>
         </div>
         <div class="grid-2" style="margin-bottom:16px">
           <div class="card">
@@ -393,7 +424,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
                 <option>Threat Intelligence Team</option>
               </select>
             </div>
-            <button class="btn btn-ai" style="width:100%;justify-content:center;padding:11px" onclick="runAiHub()"><i class="ti ti-brain"></i> Generate with Claude AI</button>
+            <button class="btn btn-ai" style="width:100%;justify-content:center;padding:11px" onclick="runAiHub()"><i class="ti ti-brain"></i> Generate Briefing</button>
           </div>
           <div class="card" style="display:flex;flex-direction:column">
             <div class="card-header">
@@ -434,6 +465,8 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
               <option value="">All Types</option><option>IP</option><option>Domain</option><option>SHA256</option><option>URL</option><option>Email</option><option>BTC Wallet</option>
             </select>
             <button class="btn" id="btn-add-ioc" onclick="openAddIOC()"><i class="ti ti-plus"></i> Add IOC</button>
+            <button class="btn" onclick="exportIOCs('csv')"><i class="ti ti-download"></i> Export CSV</button>
+            <button class="btn" onclick="exportIOCs('json')"><i class="ti ti-download"></i> Export JSON</button>
           </div>
         </div>
         <div class="stats-row" style="grid-template-columns:repeat(6,1fr);margin-bottom:16px">
@@ -610,14 +643,7 @@ body::after{content:'';position:fixed;top:0;left:0;width:100%;height:100%;pointe
         <div class="page-header"><div class="page-title">Platform Settings</div></div>
         <div class="grid-2">
           <div class="card">
-            <div class="card-header"><span class="card-title">API Configuration</span></div>
-            <div class="input-group">
-              <label>Claude AI API Key <span style="color:var(--accent-purple)">(required for AI features)</span></label>
-              <div class="key-wrap">
-                <input type="password" id="api-key-input" placeholder="sk-ant-api03-...">
-                <button class="key-reveal" onclick="toggleKeyVis()" title="Show/hide"><i class="ti ti-eye" id="key-eye"></i></button>
-              </div>
-            </div>
+            <div class="card-header"><span class="card-title">Platform Configuration</span></div>
             <div class="input-group"><label>PostgreSQL Connection String</label><input type="password" value="postgresql://sentinel:****@db.sentinel.io:5432/intel" readonly></div>
             <div class="input-group"><label>Elasticsearch Endpoint</label><input value="https://es.sentinel.io:9200" readonly></div>
             <button class="btn btn-success" style="margin-top:6px" onclick="saveSettings()"><i class="ti ti-check"></i> Save Configuration</button>
@@ -707,6 +733,12 @@ const FEEDS_DATA = [
   {name:'SABRIC Banking Alerts',type:'vendor',status:'live',last:getRelativeTimeStr(11),items:45,url:'sabric.co.za'},
   {name:'NIBSS / Payments Fraud Signals',type:'vendor',status:'live',last:getRelativeTimeStr(30),items:17,url:'nibss-plc.com.ng'},
   {name:'BleepingComputer - Finance & Ransomware',type:'RSS',status:'live',last:getRelativeTimeStr(22),items:24,url:'bleepingcomputer.com'},
+  {name:'MISP Threat Sharing - Africa Finance',type:'vendor',status:'live',last:getRelativeTimeStr(45),items:52,url:'misp-project.org'},
+  {name:'CERT.ng Advisories',type:'vendor',status:'live',last:getRelativeTimeStr(38),items:19,url:'cert.gov.ng'},
+  {name:'Ghana CERT Alerts',type:'vendor',status:'live',last:getRelativeTimeStr(42),items:11,url:'cert.gov.gh'},
+  {name:'MalwareBazaar - Banking Samples',type:'RSS',status:'live',last:getRelativeTimeStr(8),items:67,url:'bazaar.abuse.ch'},
+  {name:'PhishTank - Financial Lures',type:'RSS',status:'live',last:getRelativeTimeStr(14),items:43,url:'phishtank.org'},
+  {name:'Interpol AFJOC Cyber Alerts',type:'vendor',status:'live',last:getRelativeTimeStr(55),items:8,url:'interpol.int'},
 ];
 
 const ACTORS_DATA = [
@@ -807,7 +839,7 @@ const USERS_DATA = [
 
 const FEED_ITEMS = [
   {title:'SWIFT payment operations targeted by credential replay and anomalous MT103 approval chains',sev:'critical',cat:'SWIFT / Payments',src:'SWIFT Customer Security Intelligence',time:getRelativeTimeStr(12),publishedDate:getRelativeDateStr(1)},
-  {title:'Banking trojan campaign uses overlay injection against mobile banking and wallet apps',sev:'critical',cat:'Banking Malware',src:'ThreatFox Banking IOCs',time:getRelativeTimeStr(34),publishedDate:getRelativeDateStr(1)},
+  {title:'Banking trojan campaign uses overlay injection against mobile banking and wallet apps',sev:'critical',cat:'Banking Malware',src:'Abuse.ch ThreatFox - Banking IOCs',time:getRelativeTimeStr(34),publishedDate:getRelativeDateStr(1)},
   {title:'Ransomware crews increase extortion posts against credit unions, insurers, and payment processors',sev:'high',cat:'Ransomware',src:'Ransomware.live - Financial Victims',time:getRelativeTimeStr(52),publishedDate:getRelativeDateStr(1)},
   {title:'Card-not-present fraud kit observed harvesting 3DS challenge data from regional merchants',sev:'high',cat:'Card Fraud',src:'PCI Security Standards Council Alerts',time:getRelativeTimeStr(72),publishedDate:getRelativeDateStr(2)},
   {title:'BEC campaign impersonates treasury teams to redirect supplier settlement accounts',sev:'high',cat:'BEC / Fraud',src:'FS-ISAC Advisories',time:getRelativeTimeStr(120),publishedDate:getRelativeDateStr(2)},
@@ -816,14 +848,38 @@ const FEED_ITEMS = [
   {title:'ATM jackpotting indicators overlap with known FIN7 POS malware infrastructure',sev:'high',cat:'ATM / POS',src:'AlienVault OTX - Finance Pulses',time:getRelativeTimeStr(260),publishedDate:getRelativeDateStr(3)},
   {title:'Crypto exchange support portals targeted with fake KYC and seed phrase recovery lures',sev:'high',cat:'Crypto / Fintech',src:'URLhaus - Payment Malware URLs',time:getRelativeTimeStr(300),publishedDate:getRelativeDateStr(4)},
   {title:'Regulatory reminder: banks should harden third-party fintech API schema validation and rate limits',sev:'medium',cat:'Regulatory',src:'CBN Cybersecurity Circulars',time:getRelativeTimeStr(360),publishedDate:getRelativeDateStr(4)},
+  {title:'Mule account network linked to instant payment fraud across tier-1 West African banks',sev:'high',cat:'Fraud',src:'NIBSS / Payments Fraud Signals',time:getRelativeTimeStr(5 * 24 * 60),publishedDate:getRelativeDateStr(5)},
+  {title:'Phishing kit targets GTBank and Zenith corporate treasury login portals',sev:'high',cat:'Phishing',src:'PhishTank - Financial Lures',time:getRelativeTimeStr(6 * 24 * 60),publishedDate:getRelativeDateStr(6)},
+  {title:'MalwareBazaar sample matches Carbanak loader used in POS compromise chain',sev:'high',cat:'Banking Malware',src:'MalwareBazaar - Banking Samples',time:getRelativeTimeStr(6 * 24 * 60 + 120),publishedDate:getRelativeDateStr(6)},
+  {title:'CERT.ng advisory: surge in SIM-swap assisted mobile money account takeovers',sev:'critical',cat:'Mobile Money',src:'CERT.ng Advisories',time:getRelativeTimeStr(7 * 24 * 60),publishedDate:getRelativeDateStr(7)},
+  {title:'SABRIC alert: card cloning syndicate targeting contactless terminals in Gauteng',sev:'high',cat:'Card Fraud',src:'SABRIC Banking Alerts',time:getRelativeTimeStr(8 * 24 * 60),publishedDate:getRelativeDateStr(8)},
+  {title:'Ghana CERT warns of fake mobile loan apps harvesting banking credentials',sev:'high',cat:'Phishing',src:'Ghana CERT Alerts',time:getRelativeTimeStr(9 * 24 * 60),publishedDate:getRelativeDateStr(9)},
+  {title:'MISP pulse shares IOC cluster tied to Lazarus SWIFT-style reconnaissance',sev:'critical',cat:'SWIFT / Payments',src:'MISP Threat Sharing - Africa Finance',time:getRelativeTimeStr(10 * 24 * 60),publishedDate:getRelativeDateStr(10)},
+  {title:'Interpol AFJOC bulletin: cross-border BEC targeting import/export finance desks',sev:'high',cat:'BEC / Fraud',src:'Interpol AFJOC Cyber Alerts',time:getRelativeTimeStr(11 * 24 * 60),publishedDate:getRelativeDateStr(11)},
+  {title:'Fortinet VPN flaw actively exploited against regional insurance brokers',sev:'critical',cat:'Vulnerability',src:'CISA KEV - Financial Exposure Watch',time:getRelativeTimeStr(12 * 24 * 60),publishedDate:getRelativeDateStr(12)},
+  {title:'Dark web auction lists domain admin access to East African payment switch operator',sev:'critical',cat:'Initial Access',src:'Ransomware.live - Financial Victims',time:getRelativeTimeStr(14 * 24 * 60),publishedDate:getRelativeDateStr(14)},
+  {title:'BleepingComputer: Cl0p affiliate claims data theft from West African logistics finance unit',sev:'high',cat:'Ransomware',src:'BleepingComputer - Finance & Ransomware',time:getRelativeTimeStr(16 * 24 * 60),publishedDate:getRelativeDateStr(16)},
+  {title:'OTX community shares phishing URLs spoofing Paystack merchant dashboards',sev:'medium',cat:'Phishing',src:'AlienVault OTX - Finance Pulses',time:getRelativeTimeStr(18 * 24 * 60),publishedDate:getRelativeDateStr(18)},
+  {title:'PCI alert: skimmer variant evades common checkout integrity monitoring on e-commerce gateways',sev:'high',cat:'Card Fraud',src:'PCI Security Standards Council Alerts',time:getRelativeTimeStr(21 * 24 * 60),publishedDate:getRelativeDateStr(21)},
+  {title:'ThreatFox IOC drop: C2 infrastructure linked to Xenomorph Android banking trojan',sev:'high',cat:'Banking Malware',src:'Abuse.ch ThreatFox - Banking IOCs',time:getRelativeTimeStr(24 * 24 * 60),publishedDate:getRelativeDateStr(24)},
+  {title:'CBN circular reminder: enforce API rate limits on open banking aggregator endpoints',sev:'medium',cat:'Regulatory',src:'CBN Cybersecurity Circulars',time:getRelativeTimeStr(28 * 24 * 60),publishedDate:getRelativeDateStr(28)},
 ];
+
+function resolveSourceUrl(srcName) {
+  const exact = FEEDS_DATA.find(f => f.name === srcName);
+  if (exact) return exact.url.startsWith('http') ? exact.url : 'https://' + exact.url;
+  const partial = FEEDS_DATA.find(f => srcName.includes(f.name.split(' ')[0]) || f.name.includes(srcName.split(' ')[0]));
+  if (partial) return partial.url.startsWith('http') ? partial.url : 'https://' + partial.url;
+  return '';
+}
+
+FEED_ITEMS.forEach(item => { item.sourceUrl = resolveSourceUrl(item.src); });
 
 // ══════════════════════════════════════════════════════════
 // STATE & AUTH
 // ══════════════════════════════════════════════════════════
 let currentRole = 'admin';
 let currentUser = 'admin@sentinel.io';
-let savedApiKey = '';
 let nlQueue = [];
 let aiHistCount = 0;
 let iocsList = [...IOCS_DATA];
@@ -889,6 +945,7 @@ function initApp() {
   renderSectors();
   renderDashActors();
   renderFeedHealth();
+  renderFeedsAlarms();
   renderFeedsTable();
   renderActors();
   renderIOCs();
@@ -940,8 +997,37 @@ function refreshDash() {
   notify(`Dashboard refreshed. Captured ${count} new intelligence event(s).`);
 }
 
+function getFilteredFeedItems() {
+  const filter = document.getElementById('feed-date-filter')?.value || '7';
+  const q = (document.getElementById('feed-search')?.value || '').toLowerCase();
+  let list = FEED_ITEMS;
+  if (filter !== 'all') {
+    const days = parseInt(filter, 10);
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - days + 1);
+    list = list.filter(item => new Date(item.publishedDate + 'T00:00:00') >= cutoff);
+  }
+  if (q) {
+    list = list.filter(item => {
+      const txt = (item.title + item.cat + item.src + item.sev).toLowerCase();
+      return txt.includes(q);
+    });
+  }
+  return list;
+}
+
 function renderDashFeed() {
-  document.getElementById('dash-feed-list').innerHTML = FEED_ITEMS.map((item, idx) => `
+  const list = getFilteredFeedItems();
+  const countEl = document.getElementById('feed-filter-count');
+  if (countEl) countEl.textContent = `${list.length} of ${FEED_ITEMS.length} alarms`;
+  document.getElementById('dash-feed-list').innerHTML = list.length ? list.map(item => {
+    const idx = FEED_ITEMS.indexOf(item);
+    const srcUrl = item.sourceUrl || resolveSourceUrl(item.src);
+    const sourceLink = srcUrl
+      ? `<a class="feed-source-link" href="${escHtml(srcUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()" title="Open source feed"><i class="ti ti-external-link"></i> ${escHtml(srcUrl)}</a>`
+      : '<span class="feed-time">Source link unavailable</span>';
+    return `
     <div class="feed-item ${item.sev}" onclick="showFeedDetail(${idx})">
       <div class="feed-title">${item.title}</div>
       <div class="feed-meta">
@@ -949,7 +1035,9 @@ function renderDashFeed() {
         <span class="badge badge-gray">${item.cat}</span>
         <span class="feed-time">${item.src} · Ingested: ${item.time} · Published: ${item.publishedDate}</span>
       </div>
-    </div>`).join('');
+      <div class="feed-meta" style="margin-top:6px">${sourceLink}</div>
+    </div>`;
+  }).join('') : '<div style="padding:20px;text-align:center;color:var(--text-muted);font-size:13px">No alarms match the selected date range or search.</div>';
 }
 
 function renderActivityChart() {
@@ -986,7 +1074,7 @@ function renderDashActors() {
 }
 
 function renderFeedHealth() {
-  document.getElementById('feed-health').innerHTML = FEEDS_DATA.slice(0,7).map(f => `
+  document.getElementById('feed-health').innerHTML = FEEDS_DATA.map(f => `
     <div style="display:flex;align-items:center;justify-content:space-between;padding:8px 0;border-bottom:1px solid var(--border)">
       <div style="display:flex;align-items:center;gap:8px">
         <div class="status-dot ${f.status}"></div>
@@ -1006,6 +1094,38 @@ function switchTab(ctx, val, el) {
     el.classList.add('active');
     renderFeedsTable();
   }
+}
+
+function renderFeedsAlarms() {
+  const filter = document.getElementById('feeds-date-filter')?.value || 'all';
+  let list = FEED_ITEMS;
+  if (filter !== 'all') {
+    const days = parseInt(filter, 10);
+    const cutoff = new Date();
+    cutoff.setHours(0, 0, 0, 0);
+    cutoff.setDate(cutoff.getDate() - days + 1);
+    list = list.filter(item => new Date(item.publishedDate + 'T00:00:00') >= cutoff);
+  }
+  const countEl = document.getElementById('feeds-alarm-count');
+  if (countEl) countEl.textContent = `${list.length} alarms`;
+  const tbody = document.getElementById('feeds-alarms-tbody');
+  if (!tbody) return;
+  tbody.innerHTML = list.map(item => {
+    const idx = FEED_ITEMS.indexOf(item);
+    const srcUrl = item.sourceUrl || resolveSourceUrl(item.src);
+    const linkCell = srcUrl
+      ? `<a class="feed-source-link" href="${escHtml(srcUrl)}" target="_blank" rel="noopener noreferrer" onclick="event.stopPropagation()"><i class="ti ti-external-link"></i> Open</a>`
+      : '—';
+    return `
+    <tr style="cursor:pointer" onclick="showFeedDetail(${idx})">
+      <td><strong style="color:var(--text-primary)">${item.title}</strong></td>
+      <td><span class="badge badge-${sevColor(item.sev)}">${item.sev.toUpperCase()}</span></td>
+      <td><span class="badge badge-gray">${item.cat}</span></td>
+      <td style="font-size:11px;color:var(--text-secondary)">${item.src}</td>
+      <td style="font-family:var(--font-mono);font-size:11px;color:var(--text-muted)">${item.publishedDate}</td>
+      <td>${linkCell}</td>
+    </tr>`;
+  }).join('');
 }
 
 function renderFeedsTable() {
@@ -1066,15 +1186,21 @@ function renderActors() {
 // ══════════════════════════════════════════════════════════
 // IOCs
 // ══════════════════════════════════════════════════════════
-function renderIOCs() {
+function getFilteredIOCs() {
   const q = (document.getElementById('ioc-search')?.value || '').toLowerCase();
   const tf = document.getElementById('ioc-type-f')?.value || '';
-  const list = iocsList.filter(i => {
+  return iocsList.filter(i => {
     const txt = (i.value + i.actor + i.tags.join(' ')).toLowerCase();
     return (!q || txt.includes(q)) && (!tf || i.type === tf);
   });
+}
+
+function renderIOCs() {
+  const list = getFilteredIOCs();
   document.getElementById('ioc-count').textContent = list.length + ' records';
-  document.getElementById('ioc-tbody').innerHTML = list.map((i,idx) => `
+  document.getElementById('ioc-tbody').innerHTML = list.map(i => {
+    const idx = iocsList.indexOf(i);
+    return `
     <tr style="cursor:pointer" onclick="showIOCDetail(${idx})">
       <td><span class="badge badge-${iocTypeBadge(i.type)}">${i.type}</span></td>
       <td class="ioc-val" style="max-width:260px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap" title="${i.value}">${i.value}</td>
@@ -1088,7 +1214,26 @@ function renderIOCs() {
       <td>${i.tags.map(t=>`<span class="badge badge-gray" style="margin-right:2px">${t}</span>`).join('')}</td>
       <td style="font-family:var(--font-mono);font-size:10px;color:var(--text-muted);white-space:nowrap">${i.date}</td>
       <td onclick="event.stopPropagation()"><button class="btn btn-sm btn-danger" onclick="removeIOC(${idx})" title="Remove"><i class="ti ti-trash"></i></button></td>
-    </tr>`).join('');
+    </tr>`;
+  }).join('');
+}
+
+function exportIOCs(format) {
+  const list = getFilteredIOCs();
+  if (!list.length) {
+    notify('No IOCs match the current filters to export.');
+    return;
+  }
+  const stamp = new Date().toISOString().slice(0, 10);
+  if (format === 'json') {
+    downloadFile(`sentinel_iocs_${stamp}.json`, JSON.stringify(list, null, 2));
+  } else {
+    const headers = ['type', 'value', 'actor', 'confidence', 'tags', 'date'];
+    const rows = list.map(i => [i.type, i.value, i.actor, i.conf, i.tags.join('; '), i.date]);
+    const csv = [headers.join(','), ...rows.map(r => r.map(c => `"${String(c).replace(/"/g, '""')}"`).join(','))].join('\n');
+    downloadFile(`sentinel_iocs_${stamp}.csv`, csv);
+  }
+  notify(`Exported ${list.length} IOC record(s) as ${format.toUpperCase()}.`);
 }
 
 function removeIOC(idx) {
@@ -1325,6 +1470,10 @@ function showFeedDetail(idx) {
   const item = FEED_ITEMS[idx];
   if (!item) return;
   const originalDate = item.publishedDate || getRelativeDateStr(1);
+  const srcUrl = item.sourceUrl || resolveSourceUrl(item.src);
+  const sourceBlock = srcUrl
+    ? `<div style="margin-top:10px"><strong>Source Link:</strong> <a class="feed-source-link" href="${escHtml(srcUrl)}" target="_blank" rel="noopener noreferrer">${escHtml(srcUrl)}</a></div>`
+    : '';
   const detailHtml = `
     <div class="modal-title">Threat Intelligence Bulletin <button class="modal-close" onclick="closeModal()">×</button></div>
     <div class="card" style="background:var(--bg-elevated);border-color:var(--border-bright);margin-bottom:14px">
@@ -1338,6 +1487,7 @@ function showFeedDetail(idx) {
         <div><strong>Collected/Ingested At:</strong> <span style="color:var(--accent-cyan)">${item.time}</span></div>
         <div><strong>First Seen/Discovered:</strong> <span style="color:var(--accent-amber)">${originalDate}</span></div>
       </div>
+      ${sourceBlock}
     </div>
     <div style="font-size:13px;line-height:1.6;color:var(--text-secondary);margin-bottom:14px">
       <strong>Threat Intel Insight:</strong><br>
@@ -1917,10 +2067,11 @@ SLIDE 5: RECOMMENDATIONS
 }
 
 // ══════════════════════════════════════════════════════════
-// AI DYNAMIC INTEGRATIONS (Claude API & Fallback Simulator)
+// AI BRIEFINGS (local analyst simulation)
 // ══════════════════════════════════════════════════════════
-function getKey() {
-  return document.getElementById('api-key-input')?.value?.trim() || savedApiKey;
+
+function saveSettings() {
+  notify('Platform configuration saved.');
 }
 
 // High-quality local simulator to generate reports without an API key
@@ -2064,11 +2215,11 @@ Apply perimeter patches for known exploited vulnerabilities within 24 hours. Ens
   }
 
   // General fallback text
-  return `[SIMULATED AI CONTENT - KEYLESS DEMO MODE]
-The platform is running in Simulated Analyst Fallback Mode. 
+  return `[SIMULATED AI CONTENT - OFFLINE ANALYST MODE]
+The platform is running in automated analyst mode.
 Context: ${prompt.slice(0, 300)}...
 
-This feature will dynamically parse live system arrays to generate analyst insights. To enable live Claude AI responses from api.anthropic.com, enter a valid API key in Settings.`;
+This feature dynamically parses live system arrays to generate analyst insights from current feed telemetry.`;
 }
 
 function actorsStrSim() {
@@ -2082,70 +2233,31 @@ function cvesStrSim() {
 async function callClaude(prompt, outputEl, maxTokens = 1000) {
   outputEl.classList.add('loading');
   outputEl.textContent = '';
-  
-  // Check if we are running in simulation/fallback mode (no key)
-  const key = getKey();
-  if (!key) {
-    // Determine the type of simulation based on the output element ID
-    let type = 'general';
-    const id = outputEl.id;
-    if (id === 'dash-ai-out') type = 'briefing';
-    else if (id === 'cve-ai-out') type = 'cve-analysis';
-    else if (id === 'dw-ai-out') type = 'darkweb';
-    else if (id === 'fintech-ai-out') type = 'fintech';
-    else if (id === 'nl-out') type = 'newsletter';
-    else if (id === 'rpt-ai-out') type = 'report';
-    else if (id === 'feed-ai-out') type = 'briefing';
-    else if (id === 'ai-hub-out') {
-      const selectType = document.getElementById('ai-type')?.value;
-      if (selectType === 'exec') type = 'briefing';
-      else if (selectType === 'newsletter') type = 'newsletter';
-      else if (selectType === 'fintech') type = 'fintech';
-      else if (selectType === 'advisory') type = 'cve-analysis';
-      else if (selectType === 'profile') type = 'report';
-      else if (selectType === 'ioc-report') type = 'report';
-      else if (selectType === 'hunting') type = 'report';
-    }
-    
-    // Simulate thinking delay (700ms) for better UX
-    setTimeout(() => {
-      outputEl.classList.remove('loading');
-      outputEl.textContent = getSimulatedOutput(type, prompt);
-    }, 700);
-    return;
-  }
-  
-  // Real Claude API call
-  try {
-    const res = await fetch('https://api.anthropic.com/v1/messages', {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        'x-api-key': key,
-        'anthropic-version': '2023-06-01',
-        'dangerously-allow-browser': 'true'
-      },
-      body: JSON.stringify({
-        model: 'claude-3-5-sonnet-latest',
-        max_tokens: maxTokens,
-        messages: [{role:'user', content: prompt}]
-      })
-    });
-    const data = await res.json();
-    outputEl.classList.remove('loading');
-    if (data.content?.[0]?.text) {
-      outputEl.textContent = data.content[0].text;
-    } else if (data.error) {
-      outputEl.textContent = `API Error: ${data.error.message}`;
-    } else {
-      outputEl.textContent = 'Unexpected response from Claude API.';
-    }
-  } catch (err) {
-    outputEl.classList.remove('loading');
-    outputEl.textContent = `Network error: ${err.message}
 
-Check your API key and internet connection.`;
+  let type = 'general';
+  const id = outputEl.id;
+  if (id === 'dash-ai-out') type = 'briefing';
+  else if (id === 'cve-ai-out') type = 'cve-analysis';
+  else if (id === 'dw-ai-out') type = 'darkweb';
+  else if (id === 'fintech-ai-out') type = 'fintech';
+  else if (id === 'nl-out') type = 'newsletter';
+  else if (id === 'rpt-ai-out') type = 'report';
+  else if (id === 'feed-ai-out') type = 'briefing';
+  else if (id === 'ai-hub-out') {
+    const selectType = document.getElementById('ai-type')?.value;
+    if (selectType === 'exec') type = 'briefing';
+    else if (selectType === 'newsletter') type = 'newsletter';
+    else if (selectType === 'fintech') type = 'fintech';
+    else if (selectType === 'advisory') type = 'cve-analysis';
+    else if (selectType === 'profile') type = 'report';
+    else if (selectType === 'ioc-report') type = 'report';
+    else if (selectType === 'hunting') type = 'report';
   }
+
+  setTimeout(() => {
+    outputEl.classList.remove('loading');
+    outputEl.textContent = getSimulatedOutput(type, prompt);
+  }, 700);
 }
 
 async function generateDashBriefing() {
@@ -2511,6 +2623,7 @@ function simulateDataIngestion() {
     const item = {...pool[Math.floor(Math.random() * pool.length)]};
     item.time = 'Just now';
     item.publishedDate = getRelativeDateStr(item.publishedOffset);
+    item.sourceUrl = resolveSourceUrl(item.src);
     FEED_ITEMS.unshift(item);
     
     if (item.sev === 'critical' || item.sev === 'high') {
@@ -2519,6 +2632,7 @@ function simulateDataIngestion() {
     }
     
     renderDashFeed();
+    renderFeedsAlarms();
     notify(`New threat feed item collected: "${item.title}" (${item.src})`);
   } else if (cat === 'ioc') {
     const pool = INGESTION_POOL.ioc;

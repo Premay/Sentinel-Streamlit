@@ -19,7 +19,10 @@ st.markdown(
     """
     <style>
       .block-container {
-        padding: 0;
+        padding-top: 0 !important;
+        padding-bottom: 0 !important;
+        padding-left: 0 !important;
+        padding-right: 0 !important;
         max-width: 100%;
       }
       header, footer, [data-testid="stToolbar"], [data-testid="stDecoration"] {
@@ -27,6 +30,8 @@ st.markdown(
       }
       iframe {
         display: block;
+        width: 100% !important;
+        border: none;
       }
     </style>
     """,
@@ -38,4 +43,4 @@ if not PORTAL_HTML.exists():
     st.stop()
 
 html = PORTAL_HTML.read_text(encoding="utf-8")
-components.html(html, height=940, scrolling=True)
+components.html(html, height=1050, scrolling=True)

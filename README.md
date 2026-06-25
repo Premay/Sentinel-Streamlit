@@ -2,15 +2,11 @@
 
 Run locally:
 
-```powershell
+```bash
 python -m pip install -r requirements.txt
 streamlit run app.py
 ```
 
-Deploy to Streamlit Community Cloud:
+The app embeds `sentinel-portal.html` and includes a MITRE ATT&CK TAXII explorer backed by `https://attack-taxii.mitre.org/api/v21`.
 
-1. Push this folder to a GitHub repository.
-2. In Streamlit Community Cloud, create a new app from the repo.
-3. Set the main file path to `app.py`.
-
-The portal is embedded from `sentinel-portal.html`, so keep that file beside `app.py`.
+Keep TAXII requests cached or infrequent because MITRE rate-limits the hosted TAXII service.

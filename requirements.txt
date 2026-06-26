@@ -1,2 +1,38 @@
-streamlit
-requests
+# SENTINEL Threat Intelligence Portal — Dependencies
+
+# Core
+streamlit>=1.30.0
+requests>=2.31.0
+
+# Data & Visualization
+pandas>=2.0.0
+numpy>=1.24.0
+plotly>=5.18.0
+
+# MITRE ATT&CK
+stix2>=3.0.0
+
+# Feed Parsing (for RSS)
+feedparser>=6.0.0
+
+# Dark Web / Scraping (optional)
+beautifulsoup4>=4.12.0
+lxml>=4.9.0
+
+# Database (optional)
+psycopg2-binary>=2.9.0
+sqlalchemy>=2.0.0
+
+# Elasticsearch (optional)
+elasticsearch>=8.0.0
+
+# Caching
+redis>=5.0.0
+
+# Security
+python-dotenv>=1.0.0
+cryptography>=41.0.0
+
+# Development
+pytest>=7.4.0
+black>=23.0.0

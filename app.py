@@ -1,3 +1,7 @@
+"""
+SENTINEL Threat Intelligence Portal — Main Application
+Supports both v1 (original) and v2 (new modular dashboard)
+"""
 from collections import Counter
 from datetime import UTC, datetime
 from pathlib import Path
@@ -6,6 +10,8 @@ import requests
 import streamlit as st
 import streamlit.components.v1 as components
 
+# Import Sentinel Portal v2
+from sentinel_portal_v2 import portal_v2
 
 APP_DIR = Path(__file__).parent
 PORTAL_HTML = APP_DIR / "sentinel-portal.html"
@@ -27,22 +33,11 @@ STIX_TYPES = {
     "Data Components": "x-mitre-data-component",
 }
 TACTIC_ORDER = [
-    "reconnaissance",
-    "resource-development",
-    "initial-access",
-    "execution",
-    "persistence",
-    "privilege-escalation",
-    "defense-evasion",
-    "credential-access",
-    "discovery",
-    "lateral-movement",
-    "collection",
-    "command-and-control",
-    "exfiltration",
-    "impact",
+    "reconnaissance", "resource-development", "initial-access", "execution",
+    "persistence", "privilege-escalation", "defense-evasion", "credential-access",
+    "discovery", "lateral-movement", "collection", "command-and-control",
+    "exfiltration", "impact",
 ]
-
 
 st.set_page_config(
     page_title="SENTINEL Threat Intelligence Portal",
@@ -54,70 +49,11 @@ st.set_page_config(
 st.markdown(
     """
     <style>
-    header.stAppHeader,
-    header[data-testid="stHeader"] {
-        display: none !important;
-        visibility: hidden !important;
-        height: 0 !important;
-        min-height: 0 !important;
-    }
-
-    div[data-testid="stToolbar"],
-    div[data-testid="stDecoration"],
-    div[data-testid="stStatusWidget"],
-    #MainMenu {
-        display: none !important;
-        visibility: hidden !important;
-    }
-
-    footer { visibility: hidden !important; }
-
-    .block-container {
-        padding: 0 !important;
-        margin: 0 !important;
-        max-width: 100% !important;
-    }
-
-    div[data-testid="stAppViewContainer"],
-    div[data-testid="stMain"],
-    div[data-testid="stAppViewBlockContainer"] {
-        padding-top: 0 !important;
-        margin-top: 0 !important;
-    }
-
-    div[data-testid="element-container"] {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    body, .stApp {
-        margin: 0 !important;
-        padding: 0 !important;
-    }
-
-    iframe {
-        display: block;
-        width: 100% !important;
-        border: none;
-    }
-
-    .taxii-shell,
-    .fabric-shell {
-        padding: 1.25rem 1.5rem 2rem;
-    }
-
-    .agent-card {
-        border: 1px solid #d8dee9;
-        border-radius: 8px;
-        padding: 1rem;
-        margin-bottom: 0.85rem;
-        background: #ffffff;
-    }
+    .main .block-container { padding-top: 2rem; }
     </style>
     """,
     unsafe_allow_html=True,
 )
-
 
 def get_external_id(stix_object):
     for reference in stix_object.get("external_references", []):
@@ -126,14 +62,12 @@ def get_external_id(stix_object):
             return external_id
     return ""
 
-
 def get_reference_url(stix_object):
     for reference in stix_object.get("external_references", []):
         url = reference.get("url")
         if url:
             return url
     return ""
-
 
 def get_tactics(stix_object):
     return [
@@ -142,7 +76,6 @@ def get_tactics(stix_object):
         if phase.get("phase_name")
     ]
 
-
 def summarize_text(text, limit=320):
     if not text:
         return "No description provided."
@@ -150,7 +83,6 @@ def summarize_text(text, limit=320):
     if len(clean) <= limit:
         return clean
     return clean[: limit - 3].rstrip() + "..."
-
 
 @st.cache_data(ttl=3600, show_spinner=False)
 def fetch_taxii_objects(collection_id, stix_type):
@@ -162,7 +94,6 @@ def fetch_taxii_objects(collection_id, stix_type):
     )
     response.raise_for_status()
     return response.json().get("objects", [])
-
 
 def run_collection_agent(collection_id, focus_terms, max_items):
     techniques = fetch_taxii_objects(collection_id, "attack-pattern")
@@ -205,7 +136,6 @@ def run_collection_agent(collection_id, focus_terms, max_items):
         "relationships": relationships,
     }
 
-
 def run_correlation_agent(collection):
     tactic_counts = Counter()
     platform_counts = Counter()
@@ -241,7 +171,6 @@ def run_correlation_agent(collection):
         "tactic_sequence": tactic_sequence,
         "techniques": technique_rows,
     }
-
 
 def run_threat_actor_agent(collection, correlation):
     selected_technique_ids = {
@@ -310,7 +239,6 @@ def run_threat_actor_agent(collection, correlation):
         "actors": actor_scores,
     }
 
-
 def run_writing_agent(collection, correlation, threat_actor):
     top_actor = threat_actor["actors"][0] if threat_actor["actors"] else None
     top_techniques = correlation["techniques"][:8]
@@ -354,7 +282,6 @@ def run_writing_agent(collection, correlation, threat_actor):
         "report": "\n".join(lines),
     }
 
-
 def run_executive_agent(writing, correlation, threat_actor):
     top_actor = threat_actor["actors"][0]["name"] if threat_actor["actors"] else "unattributed activity"
     top_tactics = ", ".join(tactic for tactic, _ in correlation["top_tactics"][:3]) or "unknown tactics"
@@ -373,11 +300,10 @@ def run_executive_agent(writing, correlation, threat_actor):
         "decision_points": decision_points,
         "brief": (
             f"Leadership should treat this as a behavior-led ATT&CK assessment with {top_actor} "
-            f"as the current working hypothesis. Immediate value comes from validating telemetry, "
+            "as the current working hypothesis. Immediate value comes from validating telemetry, "
             "closing detection gaps, and keeping attribution confidence separate from operational risk."
         ),
     }
-
 
 def run_intelligence_fabric(collection_label, focus_terms, max_items):
     collection_id = TAXII_COLLECTIONS[collection_label]
@@ -388,7 +314,6 @@ def run_intelligence_fabric(collection_label, focus_terms, max_items):
     executive = run_executive_agent(writing, correlation, threat_actor)
     return [collection, correlation, threat_actor, writing, executive]
 
-
 def render_portal():
     if not PORTAL_HTML.exists():
         st.error("sentinel-portal.html is missing from this Streamlit app folder.")
@@ -397,9 +322,8 @@ def render_portal():
     html = PORTAL_HTML.read_text(encoding="utf-8")
     components.html(html, height=1050, scrolling=True)
 
-
 def render_taxii_explorer():
-    st.markdown('<div class="taxii-shell">', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: -1rem;"></div>', unsafe_allow_html=True)
     st.title("MITRE ATT&CK TAXII Feed")
 
     collection_label = st.selectbox("Collection", list(TAXII_COLLECTIONS))
@@ -414,7 +338,7 @@ def render_taxii_explorer():
         objects = fetch_taxii_objects(collection_id, stix_type)
     except requests.RequestException as exc:
         st.error(f"Unable to load TAXII data: {exc}")
-        st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown('<div style="margin-bottom: 2rem;"></div>', unsafe_allow_html=True)
         return
 
     if search_term:
@@ -462,23 +386,21 @@ def render_taxii_explorer():
             }
             st.json({key: value for key, value in metadata.items() if value})
 
-    st.markdown("</div>", unsafe_allow_html=True)
-
+    st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
 def render_agent_card(title, summary):
     st.markdown(
         f"""
-        <div class="agent-card">
-            <strong>{title}</strong><br>
-            <span>{summary}</span>
+        <div style="background-color: #1f2937; padding: 12px 16px; border-radius: 8px; margin-bottom: 8px;">
+            <p style="margin: 0; color: #9ca3af; font-size: 0.85rem;">{title}</p>
+            <p style="margin: 4px 0 0 0; color: #e5e7eb; font-size: 0.95rem;">{summary}</p>
         </div>
         """,
         unsafe_allow_html=True,
     )
 
-
 def render_intelligence_fabric():
-    st.markdown('<div class="fabric-shell">', unsafe_allow_html=True)
+    st.markdown('<div style="margin-top: -1rem;"></div>', unsafe_allow_html=True)
     st.title("Multi-Agent Intelligence Fabric")
 
     st.caption(
@@ -510,17 +432,17 @@ def render_intelligence_fabric():
         )
         run_pipeline = st.button("Run Intelligence Fabric", type="primary")
 
-    if run_pipeline:
-        try:
-            with st.spinner("Running agent workflow against MITRE ATT&CK TAXII data..."):
-                st.session_state["fabric_results"] = run_intelligence_fabric(
-                    collection_label,
-                    focus_terms,
-                    max_items,
-                )
-        except requests.RequestException as exc:
-            st.error(f"Unable to run the intelligence fabric: {exc}")
-            st.markdown("</div>", unsafe_allow_html=True)
+        if run_pipeline:
+            try:
+                with st.spinner("Running agent workflow against MITRE ATT&CK TAXII data..."):
+                    st.session_state["fabric_results"] = run_intelligence_fabric(
+                        collection_label,
+                        focus_terms,
+                        max_items,
+                    )
+            except requests.RequestException as exc:
+                st.error(f"Unable to run the intelligence fabric: {exc}")
+            st.markdown('<div style="margin-bottom: 2rem;"></div>', unsafe_allow_html=True)
             return
 
     results = st.session_state.get("fabric_results")
@@ -528,7 +450,7 @@ def render_intelligence_fabric():
     with detail_col:
         if not results:
             st.info("Set the mission inputs, then run the fabric to generate an intelligence assessment.")
-            st.markdown("</div>", unsafe_allow_html=True)
+            st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
             return
 
         collection, correlation, threat_actor, writing, executive = results
@@ -585,11 +507,11 @@ def render_intelligence_fabric():
             mime="text/markdown",
         )
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("<div style='margin-bottom: 2rem;'></div>", unsafe_allow_html=True)
 
-
-portal_tab, taxii_tab, fabric_tab = st.tabs(
-    ["SENTINEL Portal", "MITRE ATT&CK TAXII", "Intelligence Fabric"]
+# ===== MAIN APP WITH V2 INTEGRATION =====
+portal_tab, taxii_tab, fabric_tab, v2_tab = st.tabs(
+    ["SENTINEL Portal", "MITRE ATT&CK TAXII", "Intelligence Fabric", "🆕 Portal v2"]
 )
 
 with portal_tab:
@@ -600,3 +522,6 @@ with taxii_tab:
 
 with fabric_tab:
     render_intelligence_fabric()
+
+with v2_tab:
+    portal_v2.render()
